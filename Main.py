@@ -90,6 +90,17 @@ def main():
 
     utils.check_folder(log_folder)  # check and create
 
-    # ----------------------Loading CIFAR10 dataset--------------------------------------------------------------
+    # ----------------------Loading  dataset--------------------------------------------------------------
 
-    (x_train, y_train), (x_test, y_test) = train_test_split(create_ir_data(), test_size=0.1, random_state=42)# TODO  # load the data
+    x_train, y_train, x_test, y_test = train_test_split(create_ir_data(), test_size=0.1, random_state=42)
+    x_test, x_val, y_test, y_val = train_test_split(x_test, y_test, test_size=0.4, random_state=7)
+    print('Train data size: {}, train label size: {}'.format(x_train.shape, y_train.shape))
+    print('val data size: {}, val label size: {}'.format(x_val.shape, y_val.shape))
+    print('test data size: {}, test label size: {}'.format(x_test.shape, y_test.shape))
+
+    # -------------------------------------Load & compile model---------------------------------------------------------
+
+    model = models.vgg_model(input_shape= x_train[0].shape, num_classes=10)
+    model.compile(loss=sigmoid_cross_entropy_with_logits,
+                  optimizer="ADAM",
+                  metrics=[tf.keras.metrics.CategoricalAccuracy()])
