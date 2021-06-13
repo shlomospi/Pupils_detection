@@ -42,7 +42,7 @@ def plot_acc_lss(history_log, log_dir=None, metric1='categorical_accuracy', metr
     :param metric1:
 
     """
-
+    plt.figure(figsize=(8, 6))
     # ----summarize history for accuracy
     plt.subplot(1, 2, 1)
     plt.plot(history_log.history[metric1])

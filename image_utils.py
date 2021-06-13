@@ -64,12 +64,14 @@ def plot_example_images(images, labels, examples=10, folder=None):
     :param examples:
     :return:
     """
+    plt.figure(figsize = (examples*2, 4))
     for image_num in range(1, examples+1):
         plt.subplot(1, examples, image_num)
         rand = random.randint(0, len(labels))
-        plt.title('image # {}'.format(rand))
+        #plt.title('image # {}'.format(rand))
         plt.imshow(cross_annotator(images[rand, :, :, :], labels[rand]))
         plt.axis('off')
+
     if folder is not None:
         plt.savefig('{}/result_examples.png'.format(folder))
     plt.show()
