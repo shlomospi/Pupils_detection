@@ -58,7 +58,7 @@ def vgg_model(input_shape, l2_weight_regulaizer=0.0002, weight_initializer="he_u
     return model
 
 
-def CNN_regression(input_shape, filters=32, l2_weight_regulaizer=0.0002, weight_initializer="he_uniform", kernel=(3, 3)):
+def CNN_regression(input_shape, filters=32, l2_weight_regulaizer=0.0002, weight_initializer="he_uniform", kernel=(3, 3), blocks=4):
     """
     two conv layers with batchnorm afterwards and maxpooling in the end
     :param input_shape:
@@ -69,8 +69,8 @@ def CNN_regression(input_shape, filters=32, l2_weight_regulaizer=0.0002, weight_
     :return:
     """
     inputs = tf.keras.layers.Input(input_shape)
-
-    for i in range(4):
+    print("Building CNN regression model")
+    for i in range(blocks):
         if i == 0:
 
             x = Conv2D(filters, kernel, padding='same', activation='relu', kernel_initializer=weight_initializer,

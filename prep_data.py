@@ -7,15 +7,18 @@ import numpy as np
 import image_utils
 
 print(cv.__version__)
-parser = argparse.ArgumentParser(description='data prep script')
-parser.add_argument('--video', help='Camera divide number. default camera0', default=0)
-parser.add_argument('--new_res', help='new res', default=[64, 32], nargs='+', type=int)
-parser.add_argument('--threshold', help=' threshold (Hmin, Hmax, Smin, Smax, Vmin, Vmax)',
-                    default=(79//2, 284//2, 0, 255, 0, 107))
+low_H, high_H, low_S,  high_S, low_V, high_V = 79//2, 284//2, 0, 255, 0, 107
+x, y = 64, 32
+def parsers():
+    parser = argparse.ArgumentParser(description='data prep script')
+    parser.add_argument('--video', help='Camera divide number. default camera0', default=0)
+    parser.add_argument('--new_res', help='new res', default=[64, 32], nargs='+', type=int)
+    parser.add_argument('--threshold', help=' threshold (Hmin, Hmax, Smin, Smax, Vmin, Vmax)',
+                        default=(79//2, 284//2, 0, 255, 0, 107))
 
-args = parser.parse_args()
-low_H, high_H, low_S,  high_S, low_V, high_V = args.threshold
-x, y = args.new_res
+    args = parser.parse_args()
+    low_H, high_H, low_S,  high_S, low_V, high_V = args.threshold
+    x, y = args.new_res
 
 
 def denormalize_img(img, high_v):
@@ -86,7 +89,7 @@ def video_csv_to_np_wrapper(data_path = "", txt_file = "1.txt", video_file = "1.
     return video_csv_to_np(video_path, txt_path, res=(64, 32))
 
 
-def video_csv_to_np(videopath, csvpath, res=(64, 32), normalize=True):
+def video_csv_to_np(videopath, csvpath, res=(64, 32), normalize=True, verbose=0):
     """
 
     :param videopath:
@@ -97,10 +100,10 @@ def video_csv_to_np(videopath, csvpath, res=(64, 32), normalize=True):
     cap = cv.VideoCapture(videopath)
     original_res = cap.get(3), cap.get(4)
     scale = original_res[0] / res[0], original_res[1] / res[1]
-
-    print("Original res: {}".format(original_res))
-    print("Resize Scale: {}".format(scale))
-    print("New Res :{}".format(res))
+    if verbose >= 1:
+        print("Original res: {}".format(original_res))
+        print("Resize Scale: {}".format(scale))
+        print("New Res :{}".format(res))
 
     label_list = []
     array_list = []
@@ -115,7 +118,8 @@ def video_csv_to_np(videopath, csvpath, res=(64, 32), normalize=True):
 
             label_list.append([values[0], values[1]])
     label_list = np.asarray(label_list)
-    print("label shape:        ", np.shape(label_list), type(label_list))
+    if verbose >=2:
+        print("label shape:        ", np.shape(label_list), type(label_list))
 
     #fourcc = cv.VideoWriter_fourcc(*'XVID')
     cap = cv.VideoCapture(videopath)
@@ -137,15 +141,20 @@ def video_csv_to_np(videopath, csvpath, res=(64, 32), normalize=True):
             break
 
     array_list = np.asarray(array_list)
-    print("images array shape: ", np.shape(array_list), type(array_list))
+    if verbose >= 2:
+        print("images array shape: ", np.shape(array_list), type(array_list))
 
     return label_list, array_list
 
 
 def create_ir_data():
+    """
+
+    :return:
+    """
     label_mat = []
     img_mat = []
-    for vid in [2]: # [1,2,3,4,5,9,13,21,22,91,111,121]:
+    for vid in [1,2,3,4,5,9,13,21,22,91,111,121]:
         txt_file = str(vid)+".txt"
         video_file = str(vid)+".avi"
 
@@ -156,19 +165,22 @@ def create_ir_data():
 
     label_mat = np.concatenate(np.asarray(label_mat))
     img_mat = np.concatenate(np.asarray(img_mat))
-    print("fin")
+    print("final dataset:")
     print("images array shape: ", np.shape(img_mat), type(img_mat))
     print("labels array shape: ", np.shape(label_mat), type(label_mat))
-    return label_mat, img_mat
+    return img_mat, label_mat
+
+# labels, imgs = create_ir_data()
 
 
-labels, imgs = create_ir_data()
+# labeled_img = image_utils.cross_annotator(imgs[555], labels[555])
 
+# image_utils.show_img(labeled_img)
+def main():
+    parsers()
 
-labeled_img = image_utils.cross_annotator(imgs[555], labels[555])
+if __name__ == '__main__':
 
-image_utils.show_img(labeled_img)
-
-
+    main()
 
 
