@@ -91,17 +91,17 @@ def main():
             times = times[-10:]
 
             # coords = denormalize_coord((x, y), original_res)
-            #frame_new = cv.resize(frame_new, (900, 600), fx=0, fy=0, interpolation=cv.INTER_CUBIC)  # temp
-            out_img = cross_annotator(frame_new, (x, y), size = frame_new.shape[0]//10)
-
-            # out_img = cv.putText(out_img, "FPS: {:.2f} Pred: {}".format(len(times) / sum(times), (x, y)), (0, 30),
-            #                      cv.FONT_HERSHEY_COMPLEX_SMALL, 1, (0, 0, 255), 2)
+            # frame_new = cv.resize(frame_new, (900, 600), fx=0, fy=0, interpolation=cv.INTER_CUBIC)  # temp
+            out_img = cross_annotator(frame, (x, y), size = frame.shape[0]//50)
+            # out_proccessed = cross_annotator(frame_new, (x, y), size=frame.shape[0] // 50)
+            out_img = cv.putText(out_img, "FPS: {:.2f} Pred: {}".format(len(times) / sum(times), (x, y)), (0, 30),
+                                 cv.FONT_HERSHEY_COMPLEX_SMALL, 1, (0, 0, 255), 2)
 
             out.write(out_img)
 
             cv.imshow('output', out_img)
-            # out_proccessed.write(np.asarray(cross_annotator(frame_new, (x, y), size = 10)))
-            # cv.imshow('outputp', cross_annotator(frame_new, (x, y), size = 10))
+
+            # cv.imshow('outputp', out_proccessed)
             if cv.waitKey(1) == ord('q'):
                 break
 

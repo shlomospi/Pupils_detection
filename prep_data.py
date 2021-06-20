@@ -13,7 +13,7 @@ def parsers():
     parser.add_argument('--video', help='Camera divide number. default camera0', default=0)
     parser.add_argument('--new_res', help='new res', default=[64, 32], nargs='+', type=int)
     parser.add_argument('--threshold', help=' threshold (Hmin, Hmax, Smin, Smax, Vmin, Vmax)',
-                        default=(79//2, 284//2, 0, 255, 0, 107))
+                        nargs='+', default=(79//2, 284//2, 0, 255, 0, 107))
 
     args = parser.parse_args()
     low_H, high_H, low_S,  high_S, low_V, high_V = args.threshold
@@ -23,7 +23,7 @@ def parsers():
 def video_csv_to_np_wrapper(data_path = "", txt_file = "1.txt", video_file = "1.avi"):
     """
 
-    :param data_path:
+    :param data_path:q
     :param txt_file:
     :param video_file:
     :return:
