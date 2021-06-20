@@ -114,3 +114,12 @@ def check_folder(log_dir):
     if not os.path.exists(log_dir):
         os.makedirs(log_dir)
     return log_dir
+
+
+def read_selected_line(file_path, line_num):
+
+    with open(file_path) as f:
+        for i, line in enumerate(f):
+            if i == line_num - 1:
+                return line
+        print("file has no line number{}".format(line_num))

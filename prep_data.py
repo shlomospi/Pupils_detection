@@ -1,10 +1,9 @@
 import cv2 as cv
 import argparse
 import os
-
 import numpy as np
-
-import image_utils
+from image_utils import *
+import utils
 
 print(cv.__version__)
 low_H, high_H, low_S,  high_S, low_V, high_V = 79//2, 284//2, 0, 255, 0, 107
@@ -19,52 +18,6 @@ def parsers():
     args = parser.parse_args()
     low_H, high_H, low_S,  high_S, low_V, high_V = args.threshold
     x, y = args.new_res
-
-
-def denormalize_img(img, high_v):
-    """
-    from 0-1 to o-high_v
-    :param img:
-    :param high_v:
-    :return:
-    """
-    return img/high_v
-
-
-def normalize_img(img, high_v):
-    """
-    from 0-high_v to o-1
-    :param img:
-    :param high_v:
-    :return:
-    """
-    return img/high_v
-
-
-def denormalize_coord(coords, img_shape):
-    """
-    from 0-1 to 0-max pixel
-    :param coords:
-    :param img_shape:
-    :return:
-    """
-    x_coord, y_coord = coords
-    x_max, y_max = img_shape
-
-    return x_coord*x_max, y_coord*y_max
-
-
-def normalize_coord(coords, img_shape):
-    """
-    from 0-max pixel to 0-1
-    :param coords:
-    :param img_shape:
-    :return:
-    """
-    x_coord, y_coord = coords
-    x_max, y_max = img_shape
-
-    return x_coord/x_max, y_coord/y_max
 
 
 def video_csv_to_np_wrapper(data_path = "", txt_file = "1.txt", video_file = "1.avi"):
@@ -170,17 +123,110 @@ def create_ir_data():
     print("labels array shape: ", np.shape(label_mat), type(label_mat))
     return img_mat, label_mat
 
-# labels, imgs = create_ir_data()
+
+def create_RGB_data(res=(64, 32), normalize=True, verbose=0):
+
+    return img_txt_to_np("inferno/images_dataset", res=res, normalize=normalize, verbose=verbose)
 
 
-# labeled_img = image_utils.cross_annotator(imgs[555], labels[555])
+def img_txt_to_np(folderpath, res=(64, 32), normalize=True, verbose=0):
+    """
 
-# image_utils.show_img(labeled_img)
+    :param folderpath:
+    :param res:
+    :param normalize:
+    :param verbose:
+    :return:
+    """
+
+    fileDir = os.path.dirname(os.path.realpath('__file__'))
+    path = os.path.join(fileDir, folderpath)
+    labelpath = os.path.join(path, "labels.txt")
+    print("Loading data from folder path:\n", path)
+    label_list = []
+    array_list = []
+    if not os.path.isfile(labelpath):
+        print(labelpath)
+        raise FileNotFoundError
+
+    with open(labelpath) as f:
+        img_count = 0
+        for _ in f:
+            img_count += 1
+
+    for image_num in range(1, img_count+1):
+
+        image_path = os.path.join(path, "{}.jpg".format(image_num))
+        if not os.path.isfile(image_path):
+            print(image_path)
+            raise FileNotFoundError
+        image = cv.imread(image_path, cv.IMREAD_COLOR)
+
+        # img handling
+        frame = cv.resize(image, res, fx=0, fy=0, interpolation=cv.INTER_CUBIC)
+        frame_HSV = cv.cvtColor(frame, cv.COLOR_BGR2HSV)
+        frame_threshold = cv.inRange(frame_HSV, (low_H, low_S, low_V), (high_H, high_S, high_V))
+        frame_new = cv.bitwise_and(frame_HSV, frame_HSV, mask=frame_threshold)
+        frame_new = frame_new[:, :, 0]
+        frame_array = np.asarray(frame_new)
+        array_list.append(frame_array)
+
+        # label handling
+        label_line = utils.read_selected_line(labelpath, image_num)
+        # original_res = image.shape[:2] # y, x
+        original_res = [image.shape[1], image.shape[0]] # x, y
+        values = label_line.strip().split(" ")
+        values = map(float, values)
+        if normalize:
+            values = normalize_coord(values, original_res)
+
+        label_list.append([values[0], values[1]])
+
+    label_list = np.asarray(label_list)
+    if verbose >= 2:
+        print("label shape:        ", np.shape(label_list), type(label_list))
+
+    array_list = np.asarray(array_list)
+    if verbose >= 2:
+        print("images array shape: ", np.shape(array_list), type(array_list))
+
+    return array_list, label_list
+
+
+def view_img_dataset(folderpath, verbose=0):
+    fileDir = os.path.dirname(os.path.realpath('__file__'))
+    path = os.path.join(fileDir, folderpath)
+    labelpath = os.path.join(path, "labels.txt")
+    print("Loading data from folder path:\n", path)
+    if not os.path.isfile(labelpath):
+        print(labelpath)
+        raise FileNotFoundError
+
+    with open(labelpath) as f:
+        img_count = 0
+        for _ in f:
+            img_count += 1
+
+    for image_num in range(1, img_count+1):
+        image_path = os.path.join(path, "{}.jpg".format(image_num))
+        if not os.path.isfile(image_path):
+            print(image_path)
+            raise FileNotFoundError
+        image = cv.imread(image_path, cv.IMREAD_COLOR)
+        image = np.asarray(image)
+        label_line = utils.read_selected_line(labelpath, image_num)
+        original_res = image.shape[:2]
+        values = label_line.strip().split(" ")
+        values = map(float, values)
+        image = cross_annotator(image, values, color=(0, 250, 0), size=2)
+        show_img(image)
+
+
 def main():
     parsers()
 
 if __name__ == '__main__':
 
-    main()
+    view_img_dataset("images_dataset")
 
 

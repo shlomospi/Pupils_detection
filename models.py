@@ -93,3 +93,45 @@ def CNN_regression(input_shape, filters=32, l2_weight_regulaizer=0.0002, weight_
     model.summary()
 
     return model
+
+
+def CNN_small_regression(input_shape, filters=16, l2_weight_regulaizer=0.0002, weight_initializer="he_uniform", kernel=(3, 3)):
+    """
+    two conv layers with batchnorm afterwards and maxpooling in the end
+    :param input_shape:
+    :param filters:
+    :param l2_weight_regulaizer:
+    :param weight_initializer:
+    :param kernel:
+    :return:
+    """
+    inputs = tf.keras.layers.Input(input_shape)
+    print("Building small CNN regression model")
+
+    x = Conv2D(filters*2, kernel, padding='valid', activation='relu', kernel_initializer=weight_initializer,
+               kernel_regularizer=l2(l2_weight_regulaizer))(inputs)
+    x = BatchNormalization()(x)
+    x = MaxPooling2D(pool_size=2)(x)
+    """
+    x = Conv2D(filters*2, kernel, padding='valid', activation='relu', kernel_initializer=weight_initializer,
+               kernel_regularizer=l2(l2_weight_regulaizer))(x)
+    x = BatchNormalization()(x)
+    x = MaxPooling2D(pool_size=2)(x)
+    """
+    x = Conv2D(filters*4, kernel, padding='valid', activation='relu', kernel_initializer=weight_initializer,
+               kernel_regularizer=l2(l2_weight_regulaizer))(x)
+    x = BatchNormalization()(x)
+    x = MaxPooling2D(pool_size=2)(x)
+
+    x = Conv2D(filters, (1, 1), padding='valid', activation='relu', kernel_initializer=weight_initializer,
+               kernel_regularizer=l2(l2_weight_regulaizer))(x)
+    x = MaxPooling2D(pool_size=2)(x)
+    x = Flatten()(x)
+    x = Dense(10, activation="relu")(x)
+    x = Dropout(0.3)(x)
+    outputs = Dense(2, activation="sigmoid")(x)
+
+    model = tf.keras.models.Model(inputs=inputs, outputs=outputs)
+    model.summary()
+
+    return model
