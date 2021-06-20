@@ -131,6 +131,7 @@ def main():
         RGBimages, RGBlabels = create_RGB_data(verbose=2)
         images = np.concatenate((IRimages, RGBimages), axis = 0)
         labels = np.concatenate((IRlabels, RGBlabels), axis = 0)
+
     else:
         raise SystemExit("Typo is dataset name")
 

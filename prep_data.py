@@ -129,6 +129,11 @@ def create_RGB_data(res=(64, 32), normalize=True, verbose=0):
     return img_txt_to_np("inferno/images_dataset", res=res, normalize=normalize, verbose=verbose)
 
 
+def create_RGB2_data(res=(64, 32), normalize=True, verbose=0):
+
+    return img_txt_to_np("inferno/images_from_videos1_dataset", res=res, normalize=normalize, verbose=verbose)
+
+
 def img_txt_to_np(folderpath, res=(64, 32), normalize=True, verbose=0):
     """
 
