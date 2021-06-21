@@ -132,7 +132,7 @@ def CNN_small_regression(input_shape, filters=16, l2_weight_regulaizer=0.0002, w
     return model
 
 
-def CNN_medium_regression(input_shape, filters=(16, 32, 64), l2_weight_regulaizer=0.0002, weight_initializer="he_Normal", kernel=(3, 3)):
+def CNN_medium_regression(input_shape, filters=(16, 32, 64), l2_weight_regulaizer=0.0002, weight_initializer="he_normal", kernel=(3, 3)):
     """
 
     :param input_shape:

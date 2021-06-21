@@ -7,8 +7,6 @@ import utils
 from tqdm import tqdm
 
 
-low_H, high_H, low_S,  high_S, low_V, high_V = 79//2, 284//2, 0, 255, 0, 107
-x, y = 64, 32
 def parsers():
     parser = argparse.ArgumentParser(description='data prep script')
     parser.add_argument('--video', help='Camera divide number. default camera0', default=0)
@@ -21,9 +19,12 @@ def parsers():
     x, y = args.new_res
 
 
-def video_csv_to_np_wrapper(data_path = "", txt_file = "1.txt", video_file = "1.avi"):
+def video_csv_to_np_wrapper(data_path = "", txt_file = "1.txt", video_file = "1.avi",
+                            tresh=(79//2, 284//2, 0, 255, 0, 107), binary=False):
     """
 
+    :param binary:
+    :param tresh:
     :param data_path:q
     :param txt_file:
     :param video_file:
@@ -40,12 +41,17 @@ def video_csv_to_np_wrapper(data_path = "", txt_file = "1.txt", video_file = "1.
         print(video_path)
         raise FileNotFoundError
 
-    return video_csv_to_np(video_path, txt_path, res=(64, 32))
+    return video_csv_to_np(video_path, txt_path, res=(64, 32), tresh=tresh, binary=binary)
 
 
-def video_csv_to_np(videopath, csvpath, res=(64, 32), normalize=True, verbose=0):
+def video_csv_to_np(videopath, csvpath, res=(64, 32), normalize=True,
+                    tresh=(79//2, 284//2, 0, 255, 0, 107), binary=False, verbose=0):
     """
 
+    :param binary:
+    :param verbose:
+    :param tresh:
+    :param normalize:
     :param videopath:
     :param csvpath:
     :param res:
@@ -54,6 +60,7 @@ def video_csv_to_np(videopath, csvpath, res=(64, 32), normalize=True, verbose=0)
     cap = cv.VideoCapture(videopath)
     original_res = cap.get(3), cap.get(4)
     scale = original_res[0] / res[0], original_res[1] / res[1]
+    low_H, high_H, low_S, high_S, low_V, high_V = tresh
     if verbose >= 1:
         print("Original res: {}".format(original_res))
         print("Resize Scale: {}".format(scale))
@@ -83,14 +90,15 @@ def video_csv_to_np(videopath, csvpath, res=(64, 32), normalize=True, verbose=0)
         ret, frame = cap.read()
 
         if ret:
-
-            frame = cv.resize(frame, res, fx=0, fy=0, interpolation=cv.INTER_CUBIC)
+            """frame = cv.resize(frame, res, fx=0, fy=0, interpolation=cv.INTER_CUBIC)
             frame_HSV = cv.cvtColor(frame, cv.COLOR_BGR2HSV)
             frame_threshold = cv.inRange(frame_HSV, (low_H, low_S, low_V), (high_H, high_S, high_V))
             frame_new = cv.bitwise_and(frame_HSV, frame_HSV, mask = frame_threshold)
             frame_new = frame_new[:, :, 0]
             frame_array = np.asarray(frame_new)
             array_list.append(frame_array)
+            """
+            array_list.append(img_preprocess(frame, res=res, tresh=tresh, binary=binary))
         else:
             break
 
@@ -101,19 +109,20 @@ def video_csv_to_np(videopath, csvpath, res=(64, 32), normalize=True, verbose=0)
     return label_list, array_list
 
 
-def create_ir_data():
+def create_ir_data(tresh=(79//2, 284//2, 0, 255, 0, 107), binary=False):
     """
 
     :return:
     """
     label_mat = []
     img_mat = []
-    for vid in [1,2,3,4,5,9,13,21,22,91,111,121]:
+    for vid in [1, 2, 3, 4, 5, 9, 13, 21, 22, 91, 111, 121]:
         txt_file = str(vid)+".txt"
         video_file = str(vid)+".avi"
 
         labels_, images = video_csv_to_np_wrapper(data_path = "dsp-ip/data/images/IR videos/",
-                                                  txt_file=txt_file, video_file=video_file)
+                                                  txt_file=txt_file, video_file=video_file,
+                                                  tresh=tresh, binary=binary)
         label_mat.append(labels_)
         img_mat.append(images)
 
@@ -125,30 +134,51 @@ def create_ir_data():
     return img_mat, label_mat
 
 
-def create_RGB_data(res=(64, 32), normalize=True, verbose=0):
+def create_RGB_data(res=(64, 32), normalize=True, tresh=(79//2, 284//2, 0, 255, 0, 107),
+                    binary=False, verbose=0):
 
-    return img_txt_to_np("inferno/images_dataset", res=res, normalize=normalize, verbose=verbose)
-
-
-def create_RGB2_data(res=(64, 32), normalize=True, verbose=0):
-
-    return img_txt_to_np("inferno/images_from_videos1_dataset", res=res, normalize=normalize, verbose=verbose)
+    return img_txt_to_np("inferno/images_dataset", res=res, normalize=normalize,
+                         binary=binary, tresh=tresh, verbose=verbose)
 
 
-def img_txt_to_np(folderpath, res=(64, 32), normalize=True, verbose=0):
+def create_RGB2_data(res=(64, 32), normalize=True, tresh=(79//2, 284//2, 0, 255, 0, 107),
+                     binary=False, verbose=0):
+
+    return img_txt_to_np("inferno/images_from_videos1_dataset", res=res, normalize=normalize,
+                         binary=binary, tresh=tresh, verbose=verbose)
+
+
+def img_preprocess(image, res=(64, 32), tresh=(79//2, 284//2, 0, 255, 0, 107), binary=False):
+    low_H, high_H, low_S,  high_S, low_V, high_V = tresh
+    resized_frame = cv.resize(image, res, fx=0, fy=0, interpolation=cv.INTER_CUBIC)
+    frame_HSV = cv.cvtColor(resized_frame, cv.COLOR_BGR2HSV)
+    frame_threshold = cv.inRange(frame_HSV, (low_H, low_S, low_V), (high_H, high_S, high_V))
+    frame_new = cv.bitwise_and(frame_HSV, frame_HSV, mask=frame_threshold)
+    if binary:
+        _, frame_new = cv.threshold(frame_new, 0, 255, cv.THRESH_BINARY)
+    frame_new = frame_new[:, :, 0]
+    frame_array = np.asarray(frame_new)
+
+    return frame_array
+
+
+def img_txt_to_np(folderpath, res=(64, 32), tresh=(79//2, 284//2, 0, 255, 0, 107),
+                  normalize=True, binary=False, verbose=0):
     """
 
+    :param binary: convert to binary or leave in grayscale
+    :param tresh: treshhold to use on HSV format
     :param folderpath:
-    :param res:
-    :param normalize:
-    :param verbose:
-    :return:
+    :param res: final resolution of images
+    :param normalize: Normalize coordinates to 0-1 or not
+    :param verbose: 2 - to print out dataset size in the end
+    :return: array_list, label_list : lists of image tensors
     """
 
     fileDir = os.path.dirname(os.path.realpath('__file__'))
     path = os.path.join(fileDir, folderpath)
     labelpath = os.path.join(path, "labels.txt")
-    print("Loading data from folder path:\n", path)
+    print("Loading data from:\n", path)
     label_list = []
     array_list = []
     if not os.path.isfile(labelpath):
@@ -169,14 +199,14 @@ def img_txt_to_np(folderpath, res=(64, 32), normalize=True, verbose=0):
         image = cv.imread(image_path, cv.IMREAD_COLOR)
 
         # img handling
-        frame = cv.resize(image, res, fx=0, fy=0, interpolation=cv.INTER_CUBIC)
+        """frame = cv.resize(image, res, fx=0, fy=0, interpolation=cv.INTER_CUBIC)
         frame_HSV = cv.cvtColor(frame, cv.COLOR_BGR2HSV)
         frame_threshold = cv.inRange(frame_HSV, (low_H, low_S, low_V), (high_H, high_S, high_V))
         frame_new = cv.bitwise_and(frame_HSV, frame_HSV, mask=frame_threshold)
         frame_new = frame_new[:, :, 0]
         frame_array = np.asarray(frame_new)
-        array_list.append(frame_array)
-
+        array_list.append(frame_array)"""
+        array_list.append(img_preprocess(image, res=res, tresh=tresh, binary=binary))
         # label handling
         label_line = utils.read_selected_line(labelpath, image_num)
         # original_res = image.shape[:2] # y, x
@@ -227,9 +257,6 @@ def view_img_dataset(folderpath, verbose=0):
         image = cross_annotator(image, values, color=(0, 250, 0), size=2)
         show_img(image)
 
-
-def main():
-    parsers()
 
 if __name__ == '__main__':
 
