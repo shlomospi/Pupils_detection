@@ -1,7 +1,5 @@
-
-from tensorflow import keras
+#from tensorflow import keras
 import tensorflow as tf
-from tensorflow.keras.datasets import cifar10
 import numpy as np
 import csv
 import image_utils
@@ -10,11 +8,21 @@ from datetime import datetime
 import os
 from sklearn.model_selection import train_test_split
 import utils
-from prep_data import create_ir_data, create_RGB_data, create_RGB2_data
+from prep_data import *
 import argparse
 from clearml import Task
 from tkinter import Tk, filedialog
+"""import imgaug as ia
+import imgaug.augmenters as iaa
+from imgaug.augmentables import Keypoint, KeypointsOnImage
 
+# ------------------------------------imgaug image augmentation init----------------------------------------------------
+
+augments = [iaa.Affine(translate_percent={"x": (-0.2, 0.2), "y": (-0.2, 0.2)},
+                       rotate=(-15, 15)),
+            iaa.Fliplr(p=0.5)]
+seq = iaa.Sequential(augments)
+"""
 # ----------------------------------------clear ml init-----------------------------------------------------------------
 
 task = Task.init()
@@ -160,14 +168,22 @@ def main():
 
     if images.ndim == 3: # for 1 channel images
         images = np.expand_dims(images, axis=-1)
-    print("Split:")
+    print("Spliting")
     x_train, x_test, y_train, y_test = train_test_split(images, labels, test_size=0.1, random_state=42)
+    print("augmenting")
+
+    x_train, y_train = flipLR_img_landmark(x_train, y_train)
+    x_train, y_train = translate_img_landmark(x_train, y_train)
+    testx, testy = translate_img_landmark(x_train[:5], y_train[:5]) # TODO temp
+    image_utils.plot_example_images(testx, testy,
+                                    title="flipped")
     x_val, x_test, y_val, y_test = train_test_split(x_test, y_test, test_size=0.4, random_state=7)
     print('Train data size: {}, train label size: {}'.format(x_train.shape, y_train.shape))
     print('val data size:   {}, val label size:   {}'.format(x_val.shape, y_val.shape))
     print('test data size:  {}, test label size:  {}'.format(x_test.shape, y_test.shape))
+
     image_utils.plot_example_images(x_train, y_train,
-                                    title="examples from the dataset")
+                                    title="examples from the training dataset")
 
     # -------------------------------------Load & compile model---------------------------------------------------------
     print("----------------------------Loading & Compiling Model----------------------------------")
@@ -175,7 +191,7 @@ def main():
     if args.phase == "retrain":
         model_path = filedialog.askdirectory() # Choose
         try:
-            model = keras.models.load_model(model_path)
+            model = tf.keras.models.load_model(model_path)
             model.summary()
             model.compile(loss=loss,
                           optimizer=tf.optimizers.Adam(learning_rate=learning_rate),

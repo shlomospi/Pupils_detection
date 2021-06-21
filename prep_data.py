@@ -5,18 +5,9 @@ import numpy as np
 from image_utils import *
 import utils
 from tqdm import tqdm
-
-
-def parsers():
-    parser = argparse.ArgumentParser(description='data prep script')
-    parser.add_argument('--video', help='Camera divide number. default camera0', default=0)
-    parser.add_argument('--new_res', help='new res', default=[64, 32], nargs='+', type=int)
-    parser.add_argument('--threshold', help=' threshold (Hmin, Hmax, Smin, Smax, Vmin, Vmax)',
-                        nargs='+', default=(79//2, 284//2, 0, 255, 0, 107))
-
-    args = parser.parse_args()
-    low_H, high_H, low_S,  high_S, low_V, high_V = args.threshold
-    x, y = args.new_res
+import tensorflow as tf
+# import tensorflow_addons as tfa
+import image_utils
 
 
 def video_csv_to_np_wrapper(data_path = "", txt_file = "1.txt", video_file = "1.avi",
@@ -44,14 +35,14 @@ def video_csv_to_np_wrapper(data_path = "", txt_file = "1.txt", video_file = "1.
     return video_csv_to_np(video_path, txt_path, res=(64, 32), tresh=tresh, binary=binary)
 
 
-def video_csv_to_np(videopath, csvpath, res=(64, 32), normalize=True,
+def video_csv_to_np(videopath, csvpath, res=(64, 32), augment=False,
                     tresh=(79//2, 284//2, 0, 255, 0, 107), binary=False, verbose=0):
     """
 
+    :param augment:
     :param binary:
     :param verbose:
     :param tresh:
-    :param normalize:
     :param videopath:
     :param csvpath:
     :param res:
@@ -60,7 +51,6 @@ def video_csv_to_np(videopath, csvpath, res=(64, 32), normalize=True,
     cap = cv.VideoCapture(videopath)
     original_res = cap.get(3), cap.get(4)
     scale = original_res[0] / res[0], original_res[1] / res[1]
-    low_H, high_H, low_S, high_S, low_V, high_V = tresh
     if verbose >= 1:
         print("Original res: {}".format(original_res))
         print("Resize Scale: {}".format(scale))
@@ -72,44 +62,39 @@ def video_csv_to_np(videopath, csvpath, res=(64, 32), normalize=True,
         for line in f:
             #  values: [ x, y]
             values = line.strip().split(" ")
+            values = list(map(float, values))
 
-            values = map(float, values)
-            if normalize:
+            if not augment:
                 values = normalize_coord(values, original_res)
 
             label_list.append([values[0], values[1]])
     label_list = np.asarray(label_list)
-    if verbose >=2:
+    if verbose >= 2:
         print("label shape:        ", np.shape(label_list), type(label_list))
 
-    #fourcc = cv.VideoWriter_fourcc(*'XVID')
     cap = cv.VideoCapture(videopath)
-    scale = 0
+
     while True:
 
         ret, frame = cap.read()
 
         if ret:
-            """frame = cv.resize(frame, res, fx=0, fy=0, interpolation=cv.INTER_CUBIC)
-            frame_HSV = cv.cvtColor(frame, cv.COLOR_BGR2HSV)
-            frame_threshold = cv.inRange(frame_HSV, (low_H, low_S, low_V), (high_H, high_S, high_V))
-            frame_new = cv.bitwise_and(frame_HSV, frame_HSV, mask = frame_threshold)
-            frame_new = frame_new[:, :, 0]
-            frame_array = np.asarray(frame_new)
-            array_list.append(frame_array)
-            """
-            array_list.append(img_preprocess(frame, res=res, tresh=tresh, binary=binary))
+
+            array_list.append(img_preprocess(frame, res=res,
+                                             tresh=tresh, binary=binary))
         else:
             break
 
     array_list = np.asarray(array_list)
+
     if verbose >= 2:
         print("images array shape: ", np.shape(array_list), type(array_list))
 
     return label_list, array_list
 
 
-def create_ir_data(tresh=(79//2, 284//2, 0, 255, 0, 107), binary=False):
+def create_ir_data(tresh=(79//2, 284//2, 0, 255, 0, 107), binary=False,
+                   verbose=2):
     """
 
     :return:
@@ -128,9 +113,10 @@ def create_ir_data(tresh=(79//2, 284//2, 0, 255, 0, 107), binary=False):
 
     label_mat = np.concatenate(np.asarray(label_mat))
     img_mat = np.concatenate(np.asarray(img_mat))
-    print("final dataset:")
-    print("images array shape: ", np.shape(img_mat), type(img_mat))
-    print("labels array shape: ", np.shape(label_mat), type(label_mat))
+    if verbose >= 2:
+        print("IR dataset:")
+        print("images array shape: ", np.shape(img_mat), type(img_mat))
+        print("labels array shape: ", np.shape(label_mat), type(label_mat))
     return img_mat, label_mat
 
 
@@ -229,7 +215,7 @@ def img_txt_to_np(folderpath, res=(64, 32), tresh=(79//2, 284//2, 0, 255, 0, 107
     return array_list, label_list
 
 
-def view_img_dataset(folderpath, verbose=0):
+def view_img_dataset(folderpath):
     fileDir = os.path.dirname(os.path.realpath('__file__'))
     path = os.path.join(fileDir, folderpath)
     labelpath = os.path.join(path, "labels.txt")
@@ -251,15 +237,69 @@ def view_img_dataset(folderpath, verbose=0):
         image = cv.imread(image_path, cv.IMREAD_COLOR)
         image = np.asarray(image)
         label_line = utils.read_selected_line(labelpath, image_num)
-        original_res = image.shape[:2]
+        # original_res = image.shape[:2]
         values = label_line.strip().split(" ")
         values = map(float, values)
         image = cross_annotator(image, values, color=(0, 250, 0), size=2)
         show_img(image)
 
 
+def flipLR_img_landmark(x_train, y_train):
+    """
+    flips and adds flipped images to dataset with one landmark
+    :param x_train:
+    :param y_train:
+    :return:
+    """
+    if y_train[0, 0] <= 1 and y_train[0, 1] <= 1:
+        x_flipedlr = tf.image.flip_left_right(x_train)
+        y_flipedlr = np.subtract(1, y_train)
+        x_train = np.concatenate((x_train, x_flipedlr), axis=0)
+        y_train = np.concatenate((y_train, y_flipedlr), axis=0)
+
+        return x_train, y_train
+
+    else:
+        print(y_train[0])
+        raise SystemExit("only normalized landmarks are supported.")
+
+
+def translate_img_landmark(x_train, y_train, max_x=8, max_y=5):
+    assert x_train.ndim == 4
+    # assert max_x < 1
+    # assert max_y < 1
+    img_shape = x_train.shape
+    if max_x < 1 and max_y < 1:  # convert to pixels
+        shiftX = max_x * img_shape[2]
+        shiftY = max_x * img_shape[1]
+    else:
+        shiftX, shiftY = max_x, max_y
+    if y_train[0, 0] < 1 and y_train[0, 1] < 1:  # convert to percent
+        trans_vec = np.array([[shiftX/img_shape[2], shiftY/img_shape[1]]])
+    else:
+        trans_vec = np.array([[shiftX, shiftY]])
+    M = np.float32([
+        [1, 0, shiftX],
+        [0, 1, shiftY]])
+    if y_train[0, 0] <= 1 and y_train[0, 1] <= 1:
+        shifted_imgs = []
+        for image in x_train:
+            shifted = cv.warpAffine(image, M, (image.shape[1], image.shape[0]))
+            shifted_imgs.append(shifted)
+
+        trans_x = np.expand_dims(np.asarray(shifted_imgs), axis = -1)
+        trans_y = np.add(y_train, trans_vec)
+
+        x_train = np.concatenate((x_train, trans_x), axis=0)
+        y_train = np.concatenate((y_train, trans_y), axis=0)
+
+        return x_train, y_train
+
+    else:
+        print(y_train[0])
+        raise SystemExit("only normalized landmarks are supported.")
+
+
 if __name__ == '__main__':
 
     view_img_dataset("images_dataset")
-
-
