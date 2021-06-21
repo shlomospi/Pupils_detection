@@ -4,8 +4,9 @@ import os
 import numpy as np
 from image_utils import *
 import utils
+from tqdm import tqdm
 
-print(cv.__version__)
+
 low_H, high_H, low_S,  high_S, low_V, high_V = 79//2, 284//2, 0, 255, 0, 107
 x, y = 64, 32
 def parsers():
@@ -159,7 +160,7 @@ def img_txt_to_np(folderpath, res=(64, 32), normalize=True, verbose=0):
         for _ in f:
             img_count += 1
 
-    for image_num in range(1, img_count+1):
+    for image_num in tqdm(range(1, img_count+1)):
 
         image_path = os.path.join(path, "{}.jpg".format(image_num))
         if not os.path.isfile(image_path):

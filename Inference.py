@@ -6,11 +6,18 @@ import argparse
 import cv2 as cv
 import time
 from image_utils import *
+from tkinter import Tk, filedialog
 
 # ----------------------------------------GPU check---------------------------------------------------------------------
 os.environ['CUDA_VISIBLE_DEVICES'] = "0"
 
 print("Num GPUs Available: ", len(tf.config.list_physical_devices('GPU')))
+
+# ----------------------------------------tkinter init-----------------------------------------------------------------
+
+root = Tk()
+root.withdraw()
+root.attributes('-topmost', True)
 
 # ----------------------------------------parsing-----------------------------------------------------------------------
 
@@ -24,7 +31,7 @@ def parse_args():
     parser.add_argument('--model',
                         default="BatchSize_64_Epochs_200_LearningRate_001_model_small_dataRGB_phaseretrain_saved_model",
                         help="relative path to saved model")
-
+    parser.add_argument("--save", type=bool, default=False, help="save the results?")
     return check_args(parser.parse_args())
 
 
@@ -45,7 +52,13 @@ def main():
     args = parse_args()
     low_H, high_H, low_S, high_S, low_V, high_V = 79 // 2, 284 // 2, 0, 255, 0, 107
     mode = "video" if args.video != "" else "images"
-    model = tf.keras.models.load_model('saved_model')
+    model_path = filedialog.askdirectory()  # Choose
+    try:
+        model = tf.keras.models.load_model(model_path)
+    except AttributeError:
+        print("The folder does not contain a saved model.\n "
+              "Choose log/<training session>/final_model")
+    # model = tf.keras.models.load_model('saved_model')
     model.summary()
 
     if mode == "video":
@@ -61,11 +74,10 @@ def main():
         fps = int(vid.get(cv.CAP_PROP_FPS))
         codec = cv.VideoWriter_fourcc(*'XVID')
         out = cv.VideoWriter("output_inference.avi", codec, fps, (width, height))
-        out_proccessed = cv.VideoWriter("output_inference_proccessed.avi", codec, fps, (width, height))
+
         cv.namedWindow("output", cv.WINDOW_NORMAL)
         cv.resizeWindow('output', 900, 600)
-        # cv.namedWindow("outputp", cv.WINDOW_NORMAL)
-        # cv.resizeWindow('outputp', 900, 600)
+
         times = []
 
         while True:

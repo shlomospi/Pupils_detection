@@ -10,13 +10,20 @@ from datetime import datetime
 import os
 from sklearn.model_selection import train_test_split
 import utils
-from prep_data import create_ir_data, create_RGB_data
+from prep_data import create_ir_data, create_RGB_data, create_RGB2_data
 import argparse
 from clearml import Task
+from tkinter import Tk, filedialog
 
 # ----------------------------------------clear ml init-----------------------------------------------------------------
 
 task = Task.init()
+
+# ----------------------------------------tkinter init-----------------------------------------------------------------
+
+root = Tk()
+root.withdraw()
+root.attributes('-topmost', True)
 # ----------------------------------------GPU check---------------------------------------------------------------------
 os.environ['CUDA_VISIBLE_DEVICES'] = "0"
 
@@ -30,7 +37,7 @@ def parse_args():
     parser.add_argument("-p", '--phase', type=str, default='train', help='train / retrain / evaluate')
     parser.add_argument("-e", '--epoch', type=int, default=400, help='The number of epochs to run')
     parser.add_argument("-b", '--batch_size', type=int, default=64, help='The size of batch')
-    parser.add_argument('--lr', type=float, default=0.0002, help='learning rate')
+    parser.add_argument('--lr', type=float, default=0.001, help='learning rate')
     parser.add_argument('--log_dir', type=str, default='', help='Directory name to save training logs')
     parser.add_argument('--blocks', default = 2, help="num of blocks")
     parser.add_argument('--arch', default="arch", help="small/blocks")
@@ -41,13 +48,13 @@ def parse_args():
 def check_args(args):
     # --data
     try:
-        assert args.data == "RGB" or "IR" or "Both"
+        assert args.data == "RGB" or "IR" or "Both" or "RGB2"
     except ValueError:
         print('Not valid data source')
 
     # --arch
     try:
-        assert args.arch == "blocks" or "small"
+        assert args.arch == "blocks" or "small" or "medium"
     except ValueError:
         print('Not valid architecture type')
 
@@ -59,7 +66,7 @@ def check_args(args):
         print('Not valid block architecture')
 
     # --phase
-    try:
+    try: # todo check if needed
         assert args.phase == "train" or "evaluate" or "retrain"
     except ValueError:
         print('phase args must be equal "train", "retrain" or "evaluate"')
@@ -87,10 +94,15 @@ def check_args(args):
 
 def main():
     #  -----------------------------------------parameters------------------------------------------------------------
-    print("\n\n Init....")
+    print("\n\nInit....")
+    print("Parsing..")
     args = parse_args()
+    epochs = args.epoch
+    learning_rate = args.lr
+    batch_size = args.batch_size
+    loss = 'mean_squared_error'
 
-    train = True if args.phase == "train" or "retrain" else False
+    """train = True if args.phase == "train" or "retrain" else False
     if type(args.epoch) is int:
         epochs = args.epoch
     else:
@@ -104,11 +116,11 @@ def main():
     if type(args.batch_size) is int:
         batch_size = args.batch_size
     else:
-        batch_size = 64
-    loss = 'mean_squared_error'
+        batch_size = 64"""
+
     # ---------------------log folder creation---------------------------------------------------------------
-    template = "BatchSize_{}_Epochs_{}_LearningRate_{}_model_{}_data{}_phase{}"
-    config = template.format(batch_size, epochs, str(learning_rate)[2:], str(args.arch), args.data, args.phase)
+    template = "BatchSize_{}_Epochs_{}_LearningRate_{}_model_{}_data_{}_phase_{}"
+    config = template.format(batch_size, epochs, str(learning_rate)[2:], args.arch, args.data, args.phase)
     if type(args.log_dir) is str and args.log_dir != "":
         log_folder = "log/{}".format(args.log_dir)
     else:
@@ -121,9 +133,14 @@ def main():
     if args.data == "IR":
         print("Loading IR data..")
         images, labels = create_ir_data()
+
     elif args.data == "RGB":
         print("Loading RGB data..")
         images, labels = create_RGB_data(verbose=2)
+
+    elif args.data == "RGB2":
+        print("Loading RGB data..")
+        images, labels = create_RGB2_data(verbose=2)
 
     elif args.data == "Both":
         print("Loading Both IR and RGB data")
@@ -148,8 +165,14 @@ def main():
 
     # -------------------------------------Load & compile model---------------------------------------------------------
     if args.phase == "retrain":
-        model = keras.models.load_model('saved_model')
-        print("Loaded pretrained model")
+        model_path = filedialog.askdirectory() # Choose
+        try:
+            model = keras.models.load_model(model_path)
+        except AttributeError:
+            print("The folder does not contain a saved model.\n Choose log/<training session>/final_model")
+        print("Loaded pretrained model from:\n{}".format(model_path))
+        # model = keras.models.load_model('saved_model') # test
+        # print("Loaded pretrained model")
         model.summary()
         model.compile(loss=loss,
                       optimizer=tf.optimizers.Adam(learning_rate=learning_rate),
@@ -181,7 +204,7 @@ def main():
     #                                              write_images=True, write_graph=False)
 
     adaptivelr = tf.keras.callbacks.ReduceLROnPlateau(monitor='val_loss', factor=0.15, patience=3,
-                                                      verbose=0, mode='auto', cooldown=2, min_lr=learning_rate//1000)
+                                                      verbose=0, mode='auto', cooldown=2, min_lr=learning_rate//100000)
 
     earlystopping = tf.keras.callbacks.EarlyStopping(monitor='val_loss', min_delta=0, patience=10,
                                                      verbose=0, mode='auto', baseline=None, restore_best_weights=True)
@@ -225,7 +248,8 @@ def main():
         csv_path = os.path.join(os.path.dirname(os.path.realpath('__file__')),
                                 'experiment_results.csv')
         print("saveing config and results at: \n{}".format(csv_path))
-        arch = "small" if args.arch == "small" else "block{}".format(args.blocks)
+        arch = "block{}".format(args.blocks) if args.arch == "blocks" else args.arch # TODO test
+        # arch = "small" if args.arch == "small" else "block{}".format(args.blocks)
         csv_line = [batch_size, epochs, learning_rate, arch, test_mse, args.data, args.phase]
 
         with open(csv_path, "a", newline='') as csvfile:
@@ -237,5 +261,5 @@ if __name__ == '__main__':
 
     main()
 
-    # TODO search hyperparam
+    # TODO Augmentation
 

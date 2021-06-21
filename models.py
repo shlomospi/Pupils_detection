@@ -112,12 +112,7 @@ def CNN_small_regression(input_shape, filters=16, l2_weight_regulaizer=0.0002, w
                kernel_regularizer=l2(l2_weight_regulaizer))(inputs)
     x = BatchNormalization()(x)
     x = MaxPooling2D(pool_size=2)(x)
-    """
-    x = Conv2D(filters*2, kernel, padding='valid', activation='relu', kernel_initializer=weight_initializer,
-               kernel_regularizer=l2(l2_weight_regulaizer))(x)
-    x = BatchNormalization()(x)
-    x = MaxPooling2D(pool_size=2)(x)
-    """
+
     x = Conv2D(filters*4, kernel, padding='valid', activation='relu', kernel_initializer=weight_initializer,
                kernel_regularizer=l2(l2_weight_regulaizer))(x)
     x = BatchNormalization()(x)
@@ -129,6 +124,49 @@ def CNN_small_regression(input_shape, filters=16, l2_weight_regulaizer=0.0002, w
     x = Flatten()(x)
     x = Dense(10, activation="relu")(x)
     x = Dropout(0.3)(x)
+    outputs = Dense(2, activation="sigmoid")(x)
+
+    model = tf.keras.models.Model(inputs=inputs, outputs=outputs)
+    model.summary()
+
+    return model
+
+
+def CNN_medium_regression(input_shape, filters=(16, 32, 64), l2_weight_regulaizer=0.0002, weight_initializer="he_Normal", kernel=(3, 3)):
+    """
+
+    :param input_shape:
+    :param filters:
+    :param l2_weight_regulaizer:
+    :param weight_initializer:
+    :param kernel:
+    :return:
+    """
+    # TODO test
+    inputs = tf.keras.layers.Input(input_shape)
+    x = inputs
+    print("Building medium CNN regression model")
+    for (i, f) in enumerate(filters):
+        # CONV 3by3 => RELU => BN => POOL
+        x = Conv2D(f, (3, 3), padding="valid", activation='relu',
+                   kernel_initializer=weight_initializer,
+                   kernel_regularizer=l2(l2_weight_regulaizer))(x)
+        x = BatchNormalization()(x)
+        x = MaxPooling2D(pool_size=(2, 2))(x)
+
+    # CONV 1by1 => RELU => BN
+    x = Conv2D(32, (1, 1), activation='relu',
+               kernel_initializer=weight_initializer,
+               kernel_regularizer=l2(l2_weight_regulaizer))(x)
+    x = BatchNormalization()(x)
+
+    x = Flatten()(x)
+
+    # FC32 => RELU => BN => DO
+    x = Dense(32, activation="relu")(x)
+    x = BatchNormalization()(x)
+    x = Dropout(0.4)(x)
+
     outputs = Dense(2, activation="sigmoid")(x)
 
     model = tf.keras.models.Model(inputs=inputs, outputs=outputs)
