@@ -173,10 +173,8 @@ def main():
     print("augmenting")
 
     x_train, y_train = flipLR_img_landmark(x_train, y_train)
-    x_train, y_train = translate_img_landmark(x_train, y_train)
-    testx, testy = translate_img_landmark(x_train[:5], y_train[:5]) # TODO temp
-    image_utils.plot_example_images(testx, testy,
-                                    title="flipped")
+    x_train, y_train = translate_img_landmark(x_train, y_train, max_x=8, max_y=4, iterations=4)
+
     x_val, x_test, y_val, y_test = train_test_split(x_test, y_test, test_size=0.4, random_state=7)
     print('Train data size: {}, train label size: {}'.format(x_train.shape, y_train.shape))
     print('val data size:   {}, val label size:   {}'.format(x_val.shape, y_val.shape))
@@ -278,8 +276,7 @@ def main():
         csv_path = os.path.join(os.path.dirname(os.path.realpath('__file__')),
                                 'experiment_results.csv')
         print("saveing config and results at: \n{}".format(csv_path))
-        arch = "block{}".format(args.blocks) if args.arch == "blocks" else args.arch # TODO test
-        # arch = "small" if args.arch == "small" else "block{}".format(args.blocks)
+        arch = "block{}".format(args.blocks) if args.arch == "blocks" else args.arch
         csv_line = [batch_size, epochs, learning_rate, arch, test_mse, args.data, args.phase]
 
         with open(csv_path, "a", newline='') as csvfile:
@@ -292,6 +289,4 @@ if __name__ == '__main__':
 
     main()
 
-    # TODO Augmentation
-    # TODO Binary preprocessing
 

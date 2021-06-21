@@ -264,16 +264,15 @@ def flipLR_img_landmark(x_train, y_train):
         raise SystemExit("only normalized landmarks are supported.")
 
 
-def translate_img_landmark(x_train, y_train, max_x=8, max_y=5):
+def translate_img_landmark_once(x_train, y_train, t_x=3, t_y=2):
     assert x_train.ndim == 4
-    # assert max_x < 1
-    # assert max_y < 1
+
     img_shape = x_train.shape
-    if max_x < 1 and max_y < 1:  # convert to pixels
-        shiftX = max_x * img_shape[2]
-        shiftY = max_x * img_shape[1]
+    if t_x < 1 and t_y < 1:  # convert to pixels
+        shiftX = t_x * img_shape[2]
+        shiftY = t_y * img_shape[1]
     else:
-        shiftX, shiftY = max_x, max_y
+        shiftX, shiftY = t_x, t_y
     if y_train[0, 0] < 1 and y_train[0, 1] < 1:  # convert to percent
         trans_vec = np.array([[shiftX/img_shape[2], shiftY/img_shape[1]]])
     else:
@@ -289,14 +288,39 @@ def translate_img_landmark(x_train, y_train, max_x=8, max_y=5):
 
         trans_x = np.expand_dims(np.asarray(shifted_imgs), axis = -1)
         trans_y = np.add(y_train, trans_vec)
+        return trans_x, trans_y
 
-        x_train = np.concatenate((x_train, trans_x), axis=0)
-        y_train = np.concatenate((y_train, trans_y), axis=0)
+    else:
+        raise SystemExit("only normalized landmarks are supported.")
+
+
+def translate_img_landmark(x_train, y_train, max_x=8, max_y=2, iterations=4):
+
+    assert x_train.ndim == 4
+
+    if y_train[0, 0] <= 1 and y_train[0, 1] <= 1:
+        randx = np.random.randint(-max_x, max_x + 1, size=iterations)
+        randy = np.random.randint(-max_y, max_y + 1, size=iterations)
+        x_res = []
+        y_res = []
+        for i in range(iterations):
+            trans_x, trans_y = translate_img_landmark_once(x_train, y_train,
+                                                           t_x=randx[i], t_y=randy[i])
+            # testx, testy = translate_img_landmark_once(trans_x[:5], trans_y[:5])
+            # image_utils.plot_example_images(testx, testy,
+            #                                 title="trans " + str(i))
+            x_res.append(trans_x)
+            y_res.append(trans_y)
+        for new_datax in x_res:
+            x_train = np.concatenate((x_train, new_datax), axis=0)
+        for new_datay in y_res:
+            y_train = np.concatenate((y_train, new_datay), axis=0)
 
         return x_train, y_train
 
     else:
         print(y_train[0])
+        cv.imshow("tmp", x_train[0])
         raise SystemExit("only normalized landmarks are supported.")
 
 
