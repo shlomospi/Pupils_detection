@@ -1,13 +1,13 @@
 ## Pupils_detection
 
 ## install
-'git clone https://github.com/shlomospi/Pupils_detection.git'
+`git clone https://github.com/shlomospi/Pupils_detection.git`
 - create venv
 - install requirments.txt
 
 # inference
 
-'python Inference.py -v <relative/path/to/video>'
+`python Inference.py -v <relative/path/to/video>`
 
 options:
 -a :    int, if larger than 1, a running average of prediction of the last <a> will be displayed
@@ -23,7 +23,7 @@ images_from_videos1_dataset
 IR videos
 alternativly, supply with new datasets and load them
 
-'python Main.py'
+`python Main.py`
 
 -p: Retraining will ask for a "saved_model" file and ignore any architecture choices
 -e: The maximal number of epochs to run
