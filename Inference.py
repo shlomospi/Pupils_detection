@@ -24,14 +24,11 @@ root.attributes('-topmost', True)
 
 def parse_args():
 
-    parser = argparse.ArgumentParser(description="inference pupil location")
-    parser.add_argument("-i", "--image_folder", type=str, default="", help='image path')
+    parser = argparse.ArgumentParser(description="fast inference pupil location")
+    # parser.add_argument("-i", "--image_folder", type=str, default="", help='image path') # TODO
     parser.add_argument("-v", '--video', type=str, default="", help='video path')
-
-    parser.add_argument('--model',
-                        default="BatchSize_64_Epochs_200_LearningRate_001_model_small_dataRGB_phaseretrain_saved_model",
-                        help="relative path to saved model")
-    parser.add_argument("--save", type=bool, default=False, help="save the results?")
+    parser.add_argument("--save", type=bool, default=True, help="save the results?")
+    parser.add_argument("-a", "--average", type=int, default=1, help="How many frames back to average prediction")
     return check_args(parser.parse_args())
 
 
@@ -47,6 +44,17 @@ def check_args(args):
     return args
 
 
+def str2bool(v):
+    if isinstance(v, bool):
+        return v
+    if v.lower() in ('yes', 'true', 't', 'y', '1'):
+        return True
+    elif v.lower() in ('no', 'false', 'f', 'n', '0'):
+        return False
+    else:
+        raise argparse.ArgumentTypeError('Boolean value expected.')
+
+
 def main():
     res = (64, 32)
     args = parse_args()
@@ -58,7 +66,7 @@ def main():
     except AttributeError:
         print("The folder does not contain a saved model.\n "
               "Choose log/<training session>/final_model")
-    # model = tf.keras.models.load_model('saved_model')
+
     model.summary()
 
     if mode == "video":
@@ -73,20 +81,27 @@ def main():
         height = int(vid.get(cv.CAP_PROP_FRAME_HEIGHT))
         fps = int(vid.get(cv.CAP_PROP_FPS))
         codec = cv.VideoWriter_fourcc(*'XVID')
-        out = cv.VideoWriter("output_inference.avi", codec, fps, (width, height))
+        if args.average > 1:
+            output_video_path = os.path.join(model_path,
+                                             "output_{}_inference_avg{}.avi".format(args.video[:-4],
+                                                                                    args.average))
+        else:
+            output_video_path = os.path.join(model_path, "output_{}_inference.avi".format(args.video[:-4]))
+        out = cv.VideoWriter(output_video_path, codec, fps, (width, height))
 
         cv.namedWindow("output", cv.WINDOW_NORMAL)
         cv.resizeWindow('output', 900, 600)
 
         times = []
-
+        predictions_x = []
+        predictions_y = []
         while True:
             _, frame = vid.read()
 
             if frame is None:
-                print("Empty Frame")
-                time.sleep(0.1)
-                continue
+                # print("Empty Frame")
+                break
+
             # original_res = (vid.get(4), vid.get(3)) # x, y
 
             frame_resized = cv.resize(frame, res, fx=0, fy=0, interpolation=cv.INTER_CUBIC)
@@ -101,19 +116,23 @@ def main():
             t2 = time.time()
             times.append(t2 - t1)
             times = times[-10:]
+            if args.average > 1:
+                predictions_x.append(x)
+                predictions_y.append(y)
+                predictions_x = predictions_x[-args.average:]
+                predictions_y = predictions_y[-args.average:]
+                x = sum(predictions_x)/len(predictions_x)
+                y = sum(predictions_y)/len(predictions_y)
 
-            # coords = denormalize_coord((x, y), original_res)
-            # frame_new = cv.resize(frame_new, (900, 600), fx=0, fy=0, interpolation=cv.INTER_CUBIC)  # temp
             out_img = cross_annotator(frame, (x, y), size = frame.shape[0]//50)
-            # out_proccessed = cross_annotator(frame_new, (x, y), size=frame.shape[0] // 50)
+
             out_img = cv.putText(out_img, "FPS: {:.2f} Pred: {}".format(len(times) / sum(times), (x, y)), (0, 30),
                                  cv.FONT_HERSHEY_COMPLEX_SMALL, 1, (0, 0, 255), 2)
-
-            out.write(out_img)
+            if args.save:
+                out.write(out_img)
 
             cv.imshow('output', out_img)
 
-            # cv.imshow('outputp', out_proccessed)
             if cv.waitKey(1) == ord('q'):
                 break
 

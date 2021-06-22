@@ -13,7 +13,7 @@ import image_utils
 def video_csv_to_np_wrapper(data_path = "", txt_file = "1.txt", video_file = "1.avi",
                             tresh=(79//2, 284//2, 0, 255, 0, 107), binary=False):
     """
-
+    wrapper for the video_csv_to_np function, creates full path and asserts files are in path
     :param binary:
     :param tresh:
     :param data_path:q
@@ -38,15 +38,15 @@ def video_csv_to_np_wrapper(data_path = "", txt_file = "1.txt", video_file = "1.
 def video_csv_to_np(videopath, csvpath, res=(64, 32), augment=False,
                     tresh=(79//2, 284//2, 0, 255, 0, 107), binary=False, verbose=0):
     """
-
-    :param augment:
-    :param binary:
+    creates a dataset from a video and a csv file.
+    :param videopath: path to video
     :param verbose:
-    :param tresh:
-    :param videopath:
-    :param csvpath:
-    :param res:
-    :return:
+    :param res: final resolution for images
+    :param csvpath: path to CSV file
+    :param augment: Flase for normalization of landmarks
+    :param tresh: treshold limits
+    :param binary: True for binary pixels, false for grayscale
+    :return: y_dataset, x_dataset
     """
     cap = cv.VideoCapture(videopath)
     original_res = cap.get(3), cap.get(4)
@@ -80,8 +80,8 @@ def video_csv_to_np(videopath, csvpath, res=(64, 32), augment=False,
 
         if ret:
 
-            array_list.append(img_preprocess(frame, res=res,
-                                             tresh=tresh, binary=binary))
+            array_list.append(img_preproccess(frame, res=res,
+                                              tresh=tresh, binary=binary))
         else:
             break
 
@@ -96,16 +96,20 @@ def video_csv_to_np(videopath, csvpath, res=(64, 32), augment=False,
 def create_ir_data(tresh=(79//2, 284//2, 0, 255, 0, 107), binary=False,
                    verbose=2):
     """
-
-    :return:
+    creates a dataset from videos and a csv file in the "IR videos" directory.
+    This dataset was created from 12 IR videos.
+    :param tresh: treshold limits
+    :param binary: True for binary pixels, false for grayscale
+    :param verbose:
+    :return: x_dataset, y_dataset
     """
     label_mat = []
     img_mat = []
-    for vid in [1, 2, 3, 4, 5, 9, 13, 21, 22, 91, 111, 121]:
+    for vid in tqdm([1, 2, 3, 4, 5, 9, 13, 21, 22, 91, 111, 121]):
         txt_file = str(vid)+".txt"
         video_file = str(vid)+".avi"
 
-        labels_, images = video_csv_to_np_wrapper(data_path = "dsp-ip/data/images/IR videos/",
+        labels_, images = video_csv_to_np_wrapper(data_path = "IR videos/",
                                                   txt_file=txt_file, video_file=video_file,
                                                   tresh=tresh, binary=binary)
         label_mat.append(labels_)
@@ -122,19 +126,47 @@ def create_ir_data(tresh=(79//2, 284//2, 0, 255, 0, 107), binary=False,
 
 def create_RGB_data(res=(64, 32), normalize=True, tresh=(79//2, 284//2, 0, 255, 0, 107),
                     binary=False, verbose=0):
-
-    return img_txt_to_np("inferno/images_dataset", res=res, normalize=normalize,
+    """
+        creates a dataset from images and a csv file in the "images_dataset" directory.
+        This dataset was created by inference of the inferno_labeler.py script on images.
+        :param res: x,y final resolution
+        :param normalize: Should the landmarks be normalized
+        :param tresh: treshold limits
+        :param binary: True for binary pixels, False for grayscale
+        :param verbose:
+        :return: x_dataset, y_dataset
+        """
+    return img_txt_to_np("images_dataset", res=res, normalize=normalize,
                          binary=binary, tresh=tresh, verbose=verbose)
 
 
 def create_RGB2_data(res=(64, 32), normalize=True, tresh=(79//2, 284//2, 0, 255, 0, 107),
                      binary=False, verbose=0):
+    """
+    creates a dataset from images and a csv file in the "images_from_videos1_dataset" directory.
+    This dataset was created by inference of the inferno_labeler.py script on 5 videos.
+    :param res: x,y final resolution
+    :param normalize: Should the landmarks be normalized
+    :param tresh: treshold limits
+    :param binary: True for binary pixels, False for grayscale
+    :param verbose: 
+    :return: x_dataset, y_dataset
+    """
 
-    return img_txt_to_np("inferno/images_from_videos1_dataset", res=res, normalize=normalize,
+    return img_txt_to_np("images_from_videos1_dataset", res=res, normalize=normalize,
                          binary=binary, tresh=tresh, verbose=verbose)
 
 
-def img_preprocess(image, res=(64, 32), tresh=(79//2, 284//2, 0, 255, 0, 107), binary=False):
+def img_preproccess(image, res=(64, 32), tresh=(79 // 2, 284 // 2, 0, 255, 0, 107), binary=False):
+    """
+    Takes and image or frame, reduces the resolution, converts to HSV, preforms tresholding,
+    and converts to grayscale or binary pixels.
+    :param image: image or frame
+    :param res: x,y final shape
+    :param tresh: treshold limits
+    :param binary: blooean, true for binary pixels, false for grayscale
+    :return: proccessed image
+    """
     low_H, high_H, low_S,  high_S, low_V, high_V = tresh
     resized_frame = cv.resize(image, res, fx=0, fy=0, interpolation=cv.INTER_CUBIC)
     frame_HSV = cv.cvtColor(resized_frame, cv.COLOR_BGR2HSV)
@@ -151,7 +183,8 @@ def img_preprocess(image, res=(64, 32), tresh=(79//2, 284//2, 0, 255, 0, 107), b
 def img_txt_to_np(folderpath, res=(64, 32), tresh=(79//2, 284//2, 0, 255, 0, 107),
                   normalize=True, binary=False, verbose=0):
     """
-
+    reads jpg images from a folder and the landmark form a CSV file (each line number coresponds to the image number,
+    with the coordiantes as two floats separated by " ". creates from them a dataset of the shapes (N,H,W,1), (N,2)
     :param binary: convert to binary or leave in grayscale
     :param tresh: treshhold to use on HSV format
     :param folderpath:
@@ -185,14 +218,7 @@ def img_txt_to_np(folderpath, res=(64, 32), tresh=(79//2, 284//2, 0, 255, 0, 107
         image = cv.imread(image_path, cv.IMREAD_COLOR)
 
         # img handling
-        """frame = cv.resize(image, res, fx=0, fy=0, interpolation=cv.INTER_CUBIC)
-        frame_HSV = cv.cvtColor(frame, cv.COLOR_BGR2HSV)
-        frame_threshold = cv.inRange(frame_HSV, (low_H, low_S, low_V), (high_H, high_S, high_V))
-        frame_new = cv.bitwise_and(frame_HSV, frame_HSV, mask=frame_threshold)
-        frame_new = frame_new[:, :, 0]
-        frame_array = np.asarray(frame_new)
-        array_list.append(frame_array)"""
-        array_list.append(img_preprocess(image, res=res, tresh=tresh, binary=binary))
+        array_list.append(img_preproccess(image, res=res, tresh=tresh, binary=binary))
         # label handling
         label_line = utils.read_selected_line(labelpath, image_num)
         # original_res = image.shape[:2] # y, x
@@ -215,7 +241,12 @@ def img_txt_to_np(folderpath, res=(64, 32), tresh=(79//2, 284//2, 0, 255, 0, 107
     return array_list, label_list
 
 
-def view_img_dataset(folderpath):
+def view_img_dataset(folderpath="images_dataset"):
+    """
+    iterates over a folder with numbered jpg images and shows them on screen with the landmark on them
+    :param folderpath:
+    :return:
+    """
     fileDir = os.path.dirname(os.path.realpath('__file__'))
     path = os.path.join(fileDir, folderpath)
     labelpath = os.path.join(path, "labels.txt")
@@ -246,14 +277,15 @@ def view_img_dataset(folderpath):
 
 def flipLR_img_landmark(x_train, y_train):
     """
-    flips and adds flipped images to dataset with one landmark
-    :param x_train:
-    :param y_train:
-    :return:
+    flips and adds flipped images to input dataset with one landmark
+    :param x_train: images, nparray of shape (N,H,W,1)
+    :param y_train: landmarks, nparray of shape (N,2)
+    :return: x_train, y_train, with flipped version appended
     """
     if y_train[0, 0] <= 1 and y_train[0, 1] <= 1:
         x_flipedlr = tf.image.flip_left_right(x_train)
-        y_flipedlr = np.subtract(1, y_train)
+        y_flipedlr = np.subtract([[1, 0]], y_train)
+        y_flipedlr = np.multiply([[1, -1]], y_flipedlr)
         x_train = np.concatenate((x_train, x_flipedlr), axis=0)
         y_train = np.concatenate((y_train, y_flipedlr), axis=0)
 
@@ -265,6 +297,15 @@ def flipLR_img_landmark(x_train, y_train):
 
 
 def translate_img_landmark_once(x_train, y_train, t_x=3, t_y=2):
+    """
+    takes a dataset as nparray of shape (N,H,W,1) and landmarks GT of shape (N,2).
+    Creates an augmentation of each image as a new dataset which is returned.
+    :param x_train: images, nparray of shape (N,H,W,1)
+    :param y_train: landmarks, nparray of shape (N,2)
+    :param t_x: horizontal translation distrance
+    :param t_y: vertical translation distrance
+    :return: augmented dataset
+    """
     assert x_train.ndim == 4
 
     img_shape = x_train.shape
@@ -295,6 +336,18 @@ def translate_img_landmark_once(x_train, y_train, t_x=3, t_y=2):
 
 
 def translate_img_landmark(x_train, y_train, max_x=8, max_y=2, iterations=4):
+    """
+    takes a dataset as nparray of shape (N,H,W,1) and landmarks GT of shape (N,2).
+    Creates <iterations> augmentations of each image and
+    appends them to the input as one dataset which is returned.
+
+    :param x_train: nparray of shape (N,H,W,1)
+    :param y_train: nparray of shape (N,2)
+    :param max_x: limit of horizontal translation, by pixels
+    :param max_y: limit of vertical translation, by pixels
+    :param iterations: how many augmentation per image to make
+    :return:
+    """
 
     assert x_train.ndim == 4
 

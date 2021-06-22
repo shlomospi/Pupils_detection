@@ -1,4 +1,3 @@
-#from tensorflow import keras
 import tensorflow as tf
 import numpy as np
 import csv
@@ -12,21 +11,11 @@ from prep_data import *
 import argparse
 from clearml import Task
 from tkinter import Tk, filedialog
-"""import imgaug as ia
-import imgaug.augmenters as iaa
-from imgaug.augmentables import Keypoint, KeypointsOnImage
-
-# ------------------------------------imgaug image augmentation init----------------------------------------------------
-
-augments = [iaa.Affine(translate_percent={"x": (-0.2, 0.2), "y": (-0.2, 0.2)},
-                       rotate=(-15, 15)),
-            iaa.Fliplr(p=0.5)]
-seq = iaa.Sequential(augments)
 """
 # ----------------------------------------clear ml init-----------------------------------------------------------------
 
 task = Task.init()
-
+"""
 # ----------------------------------------tkinter init-----------------------------------------------------------------
 
 root = Tk()
@@ -41,34 +30,68 @@ print("Num GPUs Available: ", len(tf.config.list_physical_devices('GPU')))
 # ----------------------------------------parsing-----------------------------------------------------------------------
 def parse_args():
 
-    parser = argparse.ArgumentParser(description="Pupil center detection trainer")
-    parser.add_argument("-p", '--phase', type=str, default='train',
-                        help='train / retrain')
-    parser.add_argument("-e", '--epoch', type=int, default=400,
-                        help='The number of epochs to run')
-    parser.add_argument("-b", '--batch_size', type=int, default=64,
-                        help='The size of batch')
-    parser.add_argument('--lr', type=float, default=0.001,
+    parser = argparse.ArgumentParser(description="fast Pupil center detection trainer")
+    parser.add_argument("-p", '--phase',
+                        type=str,
+                        default='train',
+                        help='train / retrain. \n'
+                             'retraining will ask for a "saved_model" file and ignore any architecture choices')
+
+    parser.add_argument("-e", '--epoch',
+                        type=int,
+                        default=400,
+                        help='The maximal number of epochs to run')
+    parser.add_argument("-b", '--batch_size',
+                        type=int,
+                        default=64,
+                        help='The size of a batch')
+    parser.add_argument('--lr',
+                        type=float,
+                        default=0.001,
                         help='learning rate')
-    parser.add_argument('--log_dir', type=str, default='',
-                        help='Directory name to save training logs')
-    parser.add_argument('--blocks', default = 2,
-                        help="num of blocks")
-    parser.add_argument('--arch', default="arch",
-                        help="small/blocks")
-    parser.add_argument('-bin', '--binary', default=False, type=bool,
-                        help="True for converting data to binary pixels, Flase ")
-    parser.add_argument('--data', default="RGB",
-                        help="what dataset to load (IR/RGB/Both)")
-    parser.add_argument('--threshold', nargs='+', default=(79 // 2, 284 // 2, 0, 255, 0, 107),
-                        help=' threshold (Hmin, Hmax, Smin, Smax, Vmin, Vmax)')
+    parser.add_argument('--reducelr',
+                        type=int,
+                        default=100000,
+                        help='by how much to reduce learning rate')
+    parser.add_argument('--log_dir',
+                        type=str,
+                        default='',
+                        help='Directory name to save training logs, any pictures and saved models')
+    parser.add_argument('--blocks',
+                        default = 2,
+                        help="num of blocks for a block type architecture")
+    parser.add_argument('--arch',
+                        default="arch",
+                        help="small/blocks/medium")
+    parser.add_argument('-bin', '--binary',
+                        default=False,
+                        type=bool,
+                        help="'-bin True' for converting data to binary pixels, ignore for False ")
+    parser.add_argument('--data',
+                        default="RGB",
+                        help="what dataset to load (IR/RGB/Both/BothRGB)")
+    parser.add_argument('--threshold',
+                        nargs='+',
+                        default=(79 // 2, 284 // 2, 0, 255, 0, 107),
+                        help=' threshold (Hmin, Hmax, Smin, Smax, Vmin, Vmax) for image preproccessing')
+    parser.add_argument('--filters',
+                        nargs='+',
+                        default=(16, 32, 64),
+                        help='filters for "medium" net')
+    parser.add_argument('-a', '--augmentation',
+                        nargs='+',
+                        default=("flip"), # TODO recheck trans option
+                        help='what augmentation to do? '
+                             'flip for flipingLR trans and an int for '
+                             'translating horizontaly up to <int> '
+                             'and vertically up to 2*<int>')
     return check_args(parser.parse_args())
 
 
 def check_args(args):
     # --data
     try:
-        assert args.data == "RGB" or "IR" or "Both" or "RGB2"
+        assert args.data == "RGB" or "IR" or "Both" or "RGB2" or "BothRGB"
     except ValueError:
         print('Not valid data source')
 
@@ -89,7 +112,7 @@ def check_args(args):
     try:
         assert args.phase == "train" or "retrain"
     except ValueError:
-        print('phase args must be equal "train", "retrain" or "evaluate"')
+        print('phase args must be equal "train" or "retrain"')
     if args.phase == "retrain":
         print("Retraining a model, overwriting Architecture choice")
     # --epoch
@@ -113,7 +136,7 @@ def check_args(args):
     return args
 
 
-def main():
+def main(verbose = 2):
     #  -----------------------------------------parameters------------------------------------------------------------
     print("\n\nInit..")
     print("-----------------------------------Parsing-----------------------------------")
@@ -127,7 +150,18 @@ def main():
     print("-----------------------------Creating Log Folder-----------------------------")
 
     template = "BatchSize_{}_Epochs_{}_LearningRate_{}_model_{}_data_{}_phase_{}"
-    config = template.format(batch_size, epochs, str(learning_rate)[2:], args.arch, args.data, args.phase)
+    if args.binary:
+        template += "_binary"
+    if args.arch == "medium":
+        arch = "medium{}_{}_{}".format(args.filters[0],
+                                       args.filters[1],
+                                       args.filters[2])
+    elif args.arch == "blocks":
+        arch = "block{}".format(args.blocks)
+    else:
+        arch = args.arch
+
+    config = template.format(batch_size, epochs, str(learning_rate)[2:], arch, args.data, args.phase)
     if type(args.log_dir) is str and args.log_dir != "":
         log_folder = "log/{}".format(args.log_dir)
     else:
@@ -157,37 +191,56 @@ def main():
         RGBimages, RGBlabels = create_RGB_data(tresh=tresh, binary=args.binary, verbose=2)
         images = np.concatenate((IRimages, RGBimages), axis = 0)
         labels = np.concatenate((IRlabels, RGBlabels), axis = 0)
+
     elif args.data == "BothRGB":
         print("Loading Both RGB and RGB2 data, and " + binary_message)
         RGB2images, RGB2labels = create_RGB2_data(verbose=2, binary=args.binary)
         RGBimages, RGBlabels = create_RGB_data(verbose=2, binary=args.binary)
         images = np.concatenate((RGB2images, RGBimages), axis=0)
         labels = np.concatenate((RGB2labels, RGBlabels), axis=0)
+
     else:
         raise SystemExit("Typo is dataset name")
 
     if images.ndim == 3: # for 1 channel images
         images = np.expand_dims(images, axis=-1)
-    print("Spliting")
-    x_train, x_test, y_train, y_test = train_test_split(images, labels, test_size=0.1, random_state=42)
-    print("augmenting")
 
-    x_train, y_train = flipLR_img_landmark(x_train, y_train)
-    x_train, y_train = translate_img_landmark(x_train, y_train, max_x=8, max_y=4, iterations=4)
+    print("Spliting..")
+    x_train, x_test, y_train, y_test = train_test_split(images, labels,
+                                                        test_size=0.1, random_state=42)
+    print("augmenting..")
 
+    augmentations = args.augmentation
+    if "flip" in augmentations:
+        print("Flipping")
+        x_train, y_train = flipLR_img_landmark(x_train, y_train)
+
+    if "trans" in augmentations:
+        for aug in augmentations:
+            if type(aug) == int:
+                print("Translating by {}".format(aug))
+                max_pixel_trans = aug
+                x_train, y_train = translate_img_landmark(x_train, y_train,
+                                                          max_x=2*max_pixel_trans,
+                                                          max_y=max_pixel_trans,
+                                                          iterations=4)
+                break
+    print("splitting valset from testset")
     x_val, x_test, y_val, y_test = train_test_split(x_test, y_test, test_size=0.4, random_state=7)
+    print("final datasets sizes:")
     print('Train data size: {}, train label size: {}'.format(x_train.shape, y_train.shape))
     print('val data size:   {}, val label size:   {}'.format(x_val.shape, y_val.shape))
     print('test data size:  {}, test label size:  {}'.format(x_test.shape, y_test.shape))
-
-    image_utils.plot_example_images(x_train, y_train,
-                                    title="examples from the training dataset")
+    if verbose > 2:
+        image_utils.plot_example_images(x_train, y_train,
+                                        title="examples from the training dataset")
 
     # -------------------------------------Load & compile model---------------------------------------------------------
     print("----------------------------Loading & Compiling Model----------------------------------")
 
     if args.phase == "retrain":
-        model_path = filedialog.askdirectory() # Choose
+
+        model_path = filedialog.askdirectory() # prompt user to choose a folder from which a saved model will be loaded
         try:
             model = tf.keras.models.load_model(model_path)
             model.summary()
@@ -210,7 +263,7 @@ def main():
             model = models.CNN_small_regression(input_shape=x_train[4].shape)
             print("Loaded {} model".format(args.arch))
         elif args.arch == "medium":
-            model = models.CNN_medium_regression(input_shape=x_train[4].shape)
+            model = models.CNN_medium_regression(input_shape=x_train[4].shape, filters=args.filters)
             print("Loaded {} model".format(args.arch))
         else:
             raise SystemExit("no model found", args.arch, type(args.arch))
@@ -228,7 +281,7 @@ def main():
     #                                              write_images=True, write_graph=False)
 
     adaptivelr = tf.keras.callbacks.ReduceLROnPlateau(monitor='val_loss', factor=0.15, patience=3,
-                                                      verbose=0, mode='auto', cooldown=2, min_lr=learning_rate//100000)
+                                                      verbose=0, mode='auto', cooldown=2, min_lr=learning_rate//args.reducelr)
 
     earlystopping = tf.keras.callbacks.EarlyStopping(monitor='val_loss', min_delta=0, patience=10,
                                                      verbose=0, mode='auto', baseline=None, restore_best_weights=True)
@@ -246,15 +299,10 @@ def main():
                         validation_data=(x_val, y_val),
                         verbose=2,
                         callbacks=callbacks)
-    final_model_path = os.path.join(log_folder, "final_model")
-    print(f"Saving best result at {final_model_path}")
-    model.save(final_model_path)
-    """
-    # ----------------------------------Load "saved_model"-------------------------------------------------------------
-    if not train: # TODO remove
-        print("Loading saved_model")
-        model = keras.models.load_model('saved_model')
-    """
+    # final_model_path = os.path.join(log_folder, "final_model")
+    # print(f"Saving best result at {final_model_path}")
+    # model.save(final_model_path)
+    # not needed, best model already saved by checkpointer
     #  ---------------------------------------Evaluate the model ------------------------------------------------------
     print("--------------------------------Evaluating Model---------------------------------------")
 
@@ -268,16 +316,26 @@ def main():
 
     utils.plot_acc_lss(history, metric1=loss, metric2=loss, log_dir=log_folder)
     image_utils.plot_example_images(x_test, model.predict(x_test),
-                                    title="examples of model's predictions after training",
+                                    title="examples of model's predictions after training on testset",
                                     examples=10, folder=log_folder)
-
+    if verbose > 2:
+        image_utils.plot_example_images(x_val, model.predict(x_val),
+                                        title="examples of model's predictions after training on valset",
+                                        examples=10, folder=log_folder)
+        image_utils.plot_example_images(x_train, model.predict(x_train),
+                                        title="examples of model's predictions after training on trainingset",
+                                        examples=10, folder=log_folder)
     if epochs > 2:
         print("-------------------------------Logging Experiment--------------------------------------")
         csv_path = os.path.join(os.path.dirname(os.path.realpath('__file__')),
                                 'experiment_results.csv')
         print("saveing config and results at: \n{}".format(csv_path))
-        arch = "block{}".format(args.blocks) if args.arch == "blocks" else args.arch
-        csv_line = [batch_size, epochs, learning_rate, arch, test_mse, args.data, args.phase]
+        # arch = "block{}".format(args.blocks) if args.arch == "blocks" else args.arch
+        pixel_format = "binary" if args.binary else "grayscale"
+        aug_log = ""
+        for augmentation in augmentations:
+            aug_log += str(augmentation)+"_"
+        csv_line = [batch_size, epochs, learning_rate, arch, test_mse, args.data, args.phase, pixel_format, aug_log]
 
         with open(csv_path, "a", newline='') as csvfile:
             csvwriter = csv.writer(csvfile)
@@ -288,5 +346,3 @@ def main():
 if __name__ == '__main__':
 
     main()
-
-
