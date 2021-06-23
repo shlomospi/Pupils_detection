@@ -10,12 +10,17 @@ import tensorflow as tf
 import image_utils
 
 
-def video_csv_to_np_wrapper(data_path = "", txt_file = "1.txt", video_file = "1.avi",
-                            tresh=(79//2, 284//2, 0, 255, 0, 107), binary=False):
+def video_csv_to_np_wrapper(data_path = "",
+                            txt_file = "1.txt",
+                            video_file = "1.avi",
+                            thresh=(79//2, 284//2, 0, 255, 0, 107),
+                            res=(64, 32),
+                            binary=False):
     """
     wrapper for the video_csv_to_np function, creates full path and asserts files are in path
+    :param res:
     :param binary:
-    :param tresh:
+    :param thresh:
     :param data_path:q
     :param txt_file:
     :param video_file:
@@ -32,11 +37,11 @@ def video_csv_to_np_wrapper(data_path = "", txt_file = "1.txt", video_file = "1.
         print(video_path)
         raise FileNotFoundError
 
-    return video_csv_to_np(video_path, txt_path, res=(64, 32), tresh=tresh, binary=binary)
+    return video_csv_to_np(video_path, txt_path, res=res, thresh=thresh, binary=binary)
 
 
 def video_csv_to_np(videopath, csvpath, res=(64, 32), augment=False,
-                    tresh=(79//2, 284//2, 0, 255, 0, 107), binary=False, verbose=0):
+                    thresh=(79//2, 284//2, 0, 255, 0, 107), binary=False, verbose=0):
     """
     creates a dataset from a video and a csv file.
     :param videopath: path to video
@@ -44,14 +49,14 @@ def video_csv_to_np(videopath, csvpath, res=(64, 32), augment=False,
     :param res: final resolution for images
     :param csvpath: path to CSV file
     :param augment: Flase for normalization of landmarks
-    :param tresh: treshold limits
+    :param thresh: threshold limits
     :param binary: True for binary pixels, false for grayscale
     :return: y_dataset, x_dataset
     """
     cap = cv.VideoCapture(videopath)
     original_res = cap.get(3), cap.get(4)
     scale = original_res[0] / res[0], original_res[1] / res[1]
-    if verbose >= 1:
+    if verbose >= 3:
         print("Original res: {}".format(original_res))
         print("Resize Scale: {}".format(scale))
         print("New Res :{}".format(res))
@@ -81,7 +86,7 @@ def video_csv_to_np(videopath, csvpath, res=(64, 32), augment=False,
         if ret:
 
             array_list.append(img_preproccess(frame, res=res,
-                                              tresh=tresh, binary=binary))
+                                              thresh=thresh, binary=binary))
         else:
             break
 
@@ -93,12 +98,15 @@ def video_csv_to_np(videopath, csvpath, res=(64, 32), augment=False,
     return label_list, array_list
 
 
-def create_ir_data(tresh=(79//2, 284//2, 0, 255, 0, 107), binary=False,
+def create_ir_data(thresh=(79 // 2, 284 // 2, 0, 255, 0, 107),
+                   res=(64, 32),
+                   binary=False,
                    verbose=2):
     """
     creates a dataset from videos and a csv file in the "IR videos" directory.
     This dataset was created from 12 IR videos.
-    :param tresh: treshold limits
+    :param res:
+    :param thresh: threshold limits
     :param binary: True for binary pixels, false for grayscale
     :param verbose:
     :return: x_dataset, y_dataset
@@ -110,8 +118,11 @@ def create_ir_data(tresh=(79//2, 284//2, 0, 255, 0, 107), binary=False,
         video_file = str(vid)+".avi"
 
         labels_, images = video_csv_to_np_wrapper(data_path = "IR videos/",
-                                                  txt_file=txt_file, video_file=video_file,
-                                                  tresh=tresh, binary=binary)
+                                                  txt_file=txt_file,
+                                                  video_file=video_file,
+                                                  thresh=thresh,
+                                                  res=res,
+                                                  binary=binary)
         label_mat.append(labels_)
         img_mat.append(images)
 
@@ -124,50 +135,53 @@ def create_ir_data(tresh=(79//2, 284//2, 0, 255, 0, 107), binary=False,
     return img_mat, label_mat
 
 
-def create_RGB_data(res=(64, 32), normalize=True, tresh=(79//2, 284//2, 0, 255, 0, 107),
+def create_RGB_data(res=(64, 32), normalize=True, thresh=(79 // 2, 284 // 2, 0, 255, 0, 107),
                     binary=False, verbose=0):
     """
         creates a dataset from images and a csv file in the "images_dataset" directory.
         This dataset was created by inference of the inferno_labeler.py script on images.
         :param res: x,y final resolution
         :param normalize: Should the landmarks be normalized
-        :param tresh: treshold limits
+        :param thresh: threshold limits
         :param binary: True for binary pixels, False for grayscale
         :param verbose:
         :return: x_dataset, y_dataset
         """
     return img_txt_to_np("images_dataset", res=res, normalize=normalize,
-                         binary=binary, tresh=tresh, verbose=verbose)
+                         binary=binary, thresh=thresh, verbose=verbose)
 
 
-def create_RGB2_data(res=(64, 32), normalize=True, tresh=(79//2, 284//2, 0, 255, 0, 107),
+def create_RGB2_data(res=(64, 32), normalize=True, thresh=(79//2, 284//2, 0, 255, 0, 107),
                      binary=False, verbose=0):
     """
     creates a dataset from images and a csv file in the "images_from_videos1_dataset" directory.
     This dataset was created by inference of the inferno_labeler.py script on 5 videos.
     :param res: x,y final resolution
     :param normalize: Should the landmarks be normalized
-    :param tresh: treshold limits
+    :param thresh: threshold limits
     :param binary: True for binary pixels, False for grayscale
     :param verbose: 
     :return: x_dataset, y_dataset
     """
 
     return img_txt_to_np("images_from_videos1_dataset", res=res, normalize=normalize,
-                         binary=binary, tresh=tresh, verbose=verbose)
+                         binary=binary, thresh=thresh, verbose=verbose)
 
 
-def img_preproccess(image, res=(64, 32), tresh=(79 // 2, 284 // 2, 0, 255, 0, 107), binary=False):
+def img_preproccess(image,
+                    res=(64, 32),
+                    thresh=(79 // 2, 284 // 2, 0, 255, 0, 107),
+                    binary=False):
     """
-    Takes and image or frame, reduces the resolution, converts to HSV, preforms tresholding,
+    Takes and image or frame, reduces the resolution, converts to HSV, preforms thresholding,
     and converts to grayscale or binary pixels.
     :param image: image or frame
     :param res: x,y final shape
-    :param tresh: treshold limits
+    :param thresh: threshold limits
     :param binary: blooean, true for binary pixels, false for grayscale
     :return: proccessed image
     """
-    low_H, high_H, low_S,  high_S, low_V, high_V = tresh
+    low_H, high_H, low_S,  high_S, low_V, high_V = thresh
     resized_frame = cv.resize(image, res, fx=0, fy=0, interpolation=cv.INTER_CUBIC)
     frame_HSV = cv.cvtColor(resized_frame, cv.COLOR_BGR2HSV)
     frame_threshold = cv.inRange(frame_HSV, (low_H, low_S, low_V), (high_H, high_S, high_V))
@@ -180,13 +194,13 @@ def img_preproccess(image, res=(64, 32), tresh=(79 // 2, 284 // 2, 0, 255, 0, 10
     return frame_array
 
 
-def img_txt_to_np(folderpath, res=(64, 32), tresh=(79//2, 284//2, 0, 255, 0, 107),
+def img_txt_to_np(folderpath, res=(64, 32), thresh=(79//2, 284//2, 0, 255, 0, 107),
                   normalize=True, binary=False, verbose=0):
     """
     reads jpg images from a folder and the landmark form a CSV file (each line number coresponds to the image number,
     with the coordiantes as two floats separated by " ". creates from them a dataset of the shapes (N,H,W,1), (N,2)
     :param binary: convert to binary or leave in grayscale
-    :param tresh: treshhold to use on HSV format
+    :param thresh: threshhold to use on HSV format
     :param folderpath:
     :param res: final resolution of images
     :param normalize: Normalize coordinates to 0-1 or not
@@ -215,10 +229,11 @@ def img_txt_to_np(folderpath, res=(64, 32), tresh=(79//2, 284//2, 0, 255, 0, 107
         if not os.path.isfile(image_path):
             print(image_path)
             raise FileNotFoundError
+
         image = cv.imread(image_path, cv.IMREAD_COLOR)
 
         # img handling
-        array_list.append(img_preproccess(image, res=res, tresh=tresh, binary=binary))
+        array_list.append(img_preproccess(image, res=res, thresh=thresh, binary=binary))
         # label handling
         label_line = utils.read_selected_line(labelpath, image_num)
         # original_res = image.shape[:2] # y, x
@@ -377,6 +392,218 @@ def translate_img_landmark(x_train, y_train, max_x=8, max_y=2, iterations=4):
         raise SystemExit("only normalized landmarks are supported.")
 
 
-if __name__ == '__main__':
+def view_preproccessed_dataset(data=None,
+                               res=(64, 32),
+                               fps=5,
+                               verbose=2,
+                               thresh=(79 // 2, 284 // 2, 0, 255, 0, 107),
+                               binary=False):
+    """
+    loads selected dataset, preproccesses them and creates a video from it
+    :param verbose:
+    :param data:
+    :param thresh:
+    :param binary:
+    :param fps:
+    :param res:
+    :return:
+    """
+    if data is None:
+        data = ["RGB", "RGB2"]
+    data_name = "_".join(data)
+    images, labels = prep_data(data=data,
+                               binary=binary,
+                               verbose=verbose,
+                               res=res,
+                               thresh=thresh)
+    pixel_type = "binary" if binary else "gray"
+    name = "{}_{}".format(data_name, pixel_type)
+    view_dataset(images,
+                 labels,
+                 name=name,
+                 res=res,
+                 fps=fps)
 
-    view_img_dataset("images_dataset")
+
+def view_dataset(images,
+                 labels,
+                 name="dataset",
+                 res=(64, 32),
+                 fps=3):
+    """
+    loads selected dataset, preproccesses them and creates a video from it
+    :param name:
+    :param labels:
+    :param images:
+    :param fps:
+    :param res:
+    :return:
+    """
+    width = res[0]*10
+    height = res[1]*10
+
+    cv.namedWindow("output", cv.WINDOW_NORMAL)
+    cv.resizeWindow('output', width, height)
+    codec = cv.VideoWriter_fourcc(*'XVID') # 'RGBA') # 'MJPG') # 'XVID')
+    output_video_path = os.path.join("preproccessed_video_of_{}.avi".format(name))
+    out = cv.VideoWriter(output_video_path, codec, fps, (width, height))
+
+    data_size = images.shape[0]
+    for img_num in range(data_size):
+        image = images[img_num]
+        label = labels[img_num]
+        image = cross_annotator(image, label, size=2)
+        image = cv.resize(image, (width, height), fx=0, fy=0, interpolation=cv.INTER_CUBIC)
+        out.write(image)
+        cv.imshow('output', image)
+        if cv.waitKey(1) == ord('q'):
+            break
+    cv.destroyAllWindows()
+
+
+def prep_data(data=None,
+              binary=True,
+              res=(64, 32),
+              verbose = 2,
+              thresh=(79 // 2, 284 // 2, 0, 255, 0, 107)):
+    """
+    creates and returns nparrays of images and labels, normalized and resized for training
+    :param data:
+    :param binary:
+    :param res:
+    :param verbose:
+    :param thresh:
+    :return:
+    """
+    known_dataset = ["IR", "RGB", "RGB2"]
+    binary_message = "converting to binary pixels.." if binary \
+        else "converting to grayscale pixels.."
+    print("Loading {} data, and ".format(",".join(data)) + binary_message)
+
+    if data is None:
+        data = ["RGB", "RGB2"]
+    else:
+        data = [string.upper() for string in data]
+        for data_name in data:
+            if data_name not in known_dataset:
+                raise ValueError("Unknown data name: " + data_name)
+
+    img_arrays = []
+    landmarks = []
+
+    if "IR" in data:
+        images, labels = create_ir_data(thresh=thresh, binary=binary,
+                                        res=res, verbose=verbose)
+        for image in images:
+            img_arrays.append(image)
+        for label in labels:
+            landmarks.append(label)
+
+    if "RGB" in data:
+        images, labels = create_RGB_data(thresh=thresh, binary=binary,
+                                         res=res, verbose=verbose)
+        for image in images:
+            img_arrays.append(image)
+        for label in labels:
+            landmarks.append(label)
+
+    if "RGB2" in data:
+
+        images, labels = create_RGB2_data(thresh=thresh, binary=binary,
+                                          res=res, verbose=verbose)
+        for image in images:
+            img_arrays.append(image)
+        for label in labels:
+            landmarks.append(label)
+
+    img_arrays = np.asarray(img_arrays)
+    landmarks = np.asarray(landmarks)
+    if verbose > 2:
+        image_utils.plot_example_images(np.expand_dims(img_arrays, axis=-1),
+                                        landmarks,
+                                        title="examples from loaded dataset")
+    return img_arrays, landmarks
+
+
+def view_augmentation(data=None,
+                      augs=None,
+                      binary=True,
+                      res=(64, 32),
+                      verbose = 2,
+                      thresh=(79 // 2, 284 // 2, 0, 255, 0, 107),
+                      fps=2):
+
+    if augs is None:
+        augs = ["flip", "trans", 2]
+
+    images, labels = prep_data(data=data,
+                               binary=binary,
+                               res=res,
+                               verbose=verbose,
+                               thresh=thresh)
+    if verbose > 1:
+        print("chosen augmentations: " + " ".join(augs))
+    if "flip" in augs:
+        print("Flipping")
+        x_train, y_train = flipLR_img_landmark(images, labels)
+        view_dataset(x_train,
+                     y_train,
+                     name="flipped",
+                     res=res,
+                     fps=fps)
+
+    if "trans" in augs:
+        for aug in augs:
+            if aug.isnumeric():
+
+                max_pixel_trans = int(aug)
+                print("Translating by {} horizontaly and"
+                      " by {} verticaly".format(2 * max_pixel_trans, max_pixel_trans))
+                print("WARNING: outofbounds check is not preformed for the landmark")
+                if images.ndim == 3:  # for 1 channel images
+                    images = np.expand_dims(images, axis=-1)
+                x_train, y_train = translate_img_landmark(images, labels,
+                                                          max_x=2*max_pixel_trans,
+                                                          max_y=max_pixel_trans,
+                                                          iterations=1)
+
+                view_dataset(x_train,
+                             y_train,
+                             name="translated",
+                             res=res,
+                             fps=fps)
+
+
+if __name__ == '__main__':
+    prep_parser = argparse.ArgumentParser(description="perp data")
+    prep_parser.add_argument("-d", '--data',
+                             nargs='+',
+                             default=["RGB"],
+                             help='what data to load. available: RGB RGB2 IR')
+    prep_parser.add_argument('-bin', '--binary',
+                             default=False,
+                             type=bool,
+                             help="'-bin True' for converting data to binary pixels, ignore for False ")
+    prep_parser.add_argument("-m", "--mode",
+                             default="prep",
+                             help="what mode to activate: prep/augs")
+    prep_parser.add_argument("-a", "--augs",
+                             nargs='+',
+                             default=["flip", "trans", 2],
+                             help="what augmentations to do: "
+                                  "flip/"
+                                  "trans(if included, you must also add an int to the list for maximal translation")
+    prep_args = prep_parser.parse_args()
+    if prep_args.mode == "prep":
+        view_preproccessed_dataset(data=prep_args.data,
+                                   res=(64, 32),
+                                   fps=2,
+                                   binary=prep_args.binary)
+    if prep_args.mode == "augs":
+        view_augmentation(data=prep_args.data,
+                          augs=prep_args.augs,
+                          binary=prep_args.binary,
+                          res=(64, 32),
+                          verbose=2,
+                          thresh=(79 // 2, 284 // 2, 0, 255, 0, 107),
+                          fps=2)

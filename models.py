@@ -132,7 +132,11 @@ def CNN_small_regression(input_shape, filters=16, l2_weight_regulaizer=0.0002, w
     return model
 
 
-def CNN_medium_regression(input_shape, filters=(16, 32, 64), l2_weight_regulaizer=0.0002, weight_initializer="he_normal", kernel=(3, 3)):
+def CNN_medium_regression(input_shape,
+                          filters=(16, 32, 64),
+                          l2_weight_regulaizer=0.0002,
+                          weight_initializer="he_normal",
+                          kernel=(3, 3)):
     """
 
     :param input_shape:
@@ -142,7 +146,7 @@ def CNN_medium_regression(input_shape, filters=(16, 32, 64), l2_weight_regulaize
     :param kernel:
     :return:
     """
-
+    fc = 64 # TODO change to 32
     inputs = tf.keras.layers.Input(input_shape)
     x = inputs
     print("Building medium CNN regression model")
@@ -155,7 +159,7 @@ def CNN_medium_regression(input_shape, filters=(16, 32, 64), l2_weight_regulaize
         x = MaxPooling2D(pool_size=(2, 2))(x)
 
     # CONV 1by1 => RELU => BN
-    x = Conv2D(32, (1, 1), activation='relu',
+    x = Conv2D(fc, (1, 1), activation='relu',
                kernel_initializer=weight_initializer,
                kernel_regularizer=l2(l2_weight_regulaizer))(x)
     x = BatchNormalization()(x)
@@ -163,7 +167,7 @@ def CNN_medium_regression(input_shape, filters=(16, 32, 64), l2_weight_regulaize
     x = Flatten()(x)
 
     # FC32 => RELU => BN => DO
-    x = Dense(32, activation="relu")(x)
+    x = Dense(fc, activation="relu")(x)
     x = BatchNormalization()(x)
     x = Dropout(0.4)(x)
 

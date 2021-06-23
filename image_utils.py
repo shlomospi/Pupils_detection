@@ -7,9 +7,9 @@ import random
 def cross_annotator(img, coord, color= (0, 250, 0), size=3):
     """
     adds cross to img
-    :param size:
-    :param img:
-    :param coord:
+    :param size: size of corss in pixels
+    :param img: image to add cross to
+    :param coord: x,y of the landmark to add
     :param color:
     :return:
     """
@@ -38,7 +38,7 @@ def cross_annotator(img, coord, color= (0, 250, 0), size=3):
     l2xe = int(x)
     l2ye = int(y + size)
 
-    img = cv.line(img, (l1xs, l1ys), (l1xe, l1ye), color, size//4+1)
+    img = cv.line(img, (l1xs, l1ys), (l1xe, l1ye), color, size//3+1)
     img = cv.line(img, (l2xs, l2ys), (l2xe, l2ye), color, size//3+1)
 
     return img

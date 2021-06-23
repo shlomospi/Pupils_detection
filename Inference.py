@@ -7,7 +7,9 @@ import cv2 as cv
 import time
 from image_utils import *
 from tkinter import Tk, filedialog
+from prep_data import *
 
+# TODO add option to see inference on preproccessed
 # ----------------------------------------GPU check---------------------------------------------------------------------
 os.environ['CUDA_VISIBLE_DEVICES'] = "0"
 
@@ -24,12 +26,26 @@ root.attributes('-topmost', True)
 
 def parse_args():
 
-    parser = argparse.ArgumentParser(description="fast inference pupil location")
-    # parser.add_argument("-i", "--image_folder", type=str, default="", help='image path') # TODO
-    parser.add_argument("-v", '--video', type=str, default="", help='video path')
-    parser.add_argument("--save", type=bool, default=True, help="save the results?")
-    parser.add_argument("-a", "--average", type=int, default=1, help="How many frames back to average prediction")
-    return check_args(parser.parse_args())
+    inf_parser = argparse.ArgumentParser(description="fast inference pupil location")
+    # inf_parser.add_argument("-i", "--image_folder", type=str, default="", help='image path') # TODO
+    inf_parser.add_argument("-v", '--video',
+                            type=str,
+                            default="",
+                            help='video path')
+    inf_parser.add_argument("--save",
+                            type=bool,
+                            default=True,
+                            help="save the results?")
+    inf_parser.add_argument("-a", "--average",
+                            type=int,
+                            default=1,
+                            help="How many frames back to average prediction")
+    inf_parser.add_argument("-o", '--output',
+                            type=str,
+                            default="original",
+                            help='"original" to show inference on original image, '
+                                 '"preproccessed" to show on preproccessed frames')
+    return check_args(inf_parser.parse_args())
 
 
 def check_args(args):
@@ -60,14 +76,14 @@ def main():
     args = parse_args()
     low_H, high_H, low_S, high_S, low_V, high_V = 79 // 2, 284 // 2, 0, 255, 0, 107
     mode = "video" if args.video != "" else "images"
+    print("Waiting for saved model..")
     model_path = filedialog.askdirectory()  # Choose
     try:
         model = tf.keras.models.load_model(model_path)
+        model.summary()
     except AttributeError:
         print("The folder does not contain a saved model.\n "
               "Choose log/<training session>/final_model")
-
-    model.summary()
 
     if mode == "video":
         if args.video == "0":
@@ -81,16 +97,17 @@ def main():
         height = int(vid.get(cv.CAP_PROP_FRAME_HEIGHT))
         fps = int(vid.get(cv.CAP_PROP_FPS))
         codec = cv.VideoWriter_fourcc(*'XVID')
+        cv.namedWindow("output", cv.WINDOW_NORMAL)
+        cv.resizeWindow('output', width, height)
         if args.average > 1:
             output_video_path = os.path.join(model_path,
-                                             "output_{}_inference_avg{}.avi".format(args.video[:-4],
-                                                                                    args.average))
+                                             "output_{}_inference_avg{}_{}.mp4".format(args.video[:-4],
+                                                                                       args.average,
+                                                                                       args.output))
         else:
-            output_video_path = os.path.join(model_path, "output_{}_inference.avi".format(args.video[:-4]))
+            output_video_path = os.path.join(model_path, "output_{}_inference_{}.mp4".format(args.video[:-4],
+                                                                                             args.output))
         out = cv.VideoWriter(output_video_path, codec, fps, (width, height))
-
-        cv.namedWindow("output", cv.WINDOW_NORMAL)
-        cv.resizeWindow('output', 900, 600)
 
         times = []
         predictions_x = []
@@ -99,7 +116,7 @@ def main():
             _, frame = vid.read()
 
             if frame is None:
-                # print("Empty Frame")
+
                 break
 
             # original_res = (vid.get(4), vid.get(3)) # x, y
@@ -124,7 +141,14 @@ def main():
                 x = sum(predictions_x)/len(predictions_x)
                 y = sum(predictions_y)/len(predictions_y)
 
-            out_img = cross_annotator(frame, (x, y), size = frame.shape[0]//50)
+            if args.output == "original":
+                out_img = cross_annotator(frame, (x, y), size = frame.shape[0] // 50)
+            elif args.output == "preproccessed":
+                frame_for_infer = np.squeeze(frame_for_infer)
+                out_img = cross_annotator(frame_for_infer, (x, y), size=2)
+                out_img = cv.resize(out_img, (width, height), fx=0, fy=0, interpolation=cv.INTER_CUBIC)
+            else: # replace with typo catcher
+                out_img = cross_annotator(frame, (x, y), size=frame.shape[0] // 50)
 
             out_img = cv.putText(out_img, "FPS: {:.2f} Pred: {}".format(len(times) / sum(times), (x, y)), (0, 30),
                                  cv.FONT_HERSHEY_COMPLEX_SMALL, 1, (0, 0, 255), 2)
@@ -136,6 +160,8 @@ def main():
             if cv.waitKey(1) == ord('q'):
                 break
 
+        if args.save:
+            print("saving output at :\n", output_video_path)
         cv.destroyAllWindows()
 
     # if mode == "images": # TODO create image inference mode

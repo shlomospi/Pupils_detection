@@ -35,12 +35,17 @@ def parse_args():
                         type=str,
                         default='train',
                         help='train / retrain. \n'
-                             'retraining will ask for a "saved_model" file and ignore any architecture choices')
+                             'retraining will ask for a "saved_model" file and '
+                             'ignore any architecture choices')
 
     parser.add_argument("-e", '--epoch',
                         type=int,
                         default=400,
                         help='The maximal number of epochs to run')
+    parser.add_argument("-d", '--data',
+                        nargs='+',
+                        default=["RGB"],
+                        help='what data to load. available: RGB RGB2 IR')
     parser.add_argument("-b", '--batch_size',
                         type=int,
                         default=64,
@@ -56,7 +61,8 @@ def parse_args():
     parser.add_argument('--log_dir',
                         type=str,
                         default='',
-                        help='Directory name to save training logs, any pictures and saved models')
+                        help='Directory name to save training logs, '
+                             'any pictures and saved models')
     parser.add_argument('--blocks',
                         default = 2,
                         help="num of blocks for a block type architecture")
@@ -66,21 +72,20 @@ def parse_args():
     parser.add_argument('-bin', '--binary',
                         default=False,
                         type=bool,
-                        help="'-bin True' for converting data to binary pixels, ignore for False ")
-    parser.add_argument('--data',
-                        default="RGB",
-                        help="what dataset to load (IR/RGB/Both/BothRGB)")
+                        help="'-bin True' for converting data to binary pixels, "
+                             "ignore for False ")
     parser.add_argument('--threshold',
                         nargs='+',
                         default=(79 // 2, 284 // 2, 0, 255, 0, 107),
-                        help=' threshold (Hmin, Hmax, Smin, Smax, Vmin, Vmax) for image preproccessing')
+                        help=' threshold (Hmin, Hmax, Smin, Smax, Vmin, Vmax) for '
+                             'image preproccessing')
     parser.add_argument('--filters',
                         nargs='+',
                         default=(16, 32, 64),
                         help='filters for "medium" net')
     parser.add_argument('-a', '--augmentation',
                         nargs='+',
-                        default=("flip"), # TODO recheck trans option
+                        default=["flip", "trans", 3],
                         help='what augmentation to do? '
                              'flip for flipingLR trans and an int for '
                              'translating horizontaly up to <int> '
@@ -89,11 +94,6 @@ def parse_args():
 
 
 def check_args(args):
-    # --data
-    try:
-        assert args.data == "RGB" or "IR" or "Both" or "RGB2" or "BothRGB"
-    except ValueError:
-        print('Not valid data source')
 
     # --arch
     try:
@@ -145,7 +145,7 @@ def main(verbose = 2):
     learning_rate = args.lr
     batch_size = args.batch_size
     loss = 'mean_squared_error'
-    tresh = args.threshold
+
     # ---------------------log folder creation---------------------------------------------------------------
     print("-----------------------------Creating Log Folder-----------------------------")
 
@@ -155,13 +155,18 @@ def main(verbose = 2):
     if args.arch == "medium":
         arch = "medium{}_{}_{}".format(args.filters[0],
                                        args.filters[1],
-                                       args.filters[2])
+                                       args.filters[2]) # TODO scale for more than 3 layers
     elif args.arch == "blocks":
         arch = "block{}".format(args.blocks)
     else:
         arch = args.arch
 
-    config = template.format(batch_size, epochs, str(learning_rate)[2:], arch, args.data, args.phase)
+    config = template.format(batch_size,
+                             epochs,
+                             str(learning_rate)[2:],
+                             arch,
+                             "".join(args.data),
+                             args.phase)
     if type(args.log_dir) is str and args.log_dir != "":
         log_folder = "log/{}".format(args.log_dir)
     else:
@@ -172,35 +177,12 @@ def main(verbose = 2):
 
     # ----------------------Loading  dataset--------------------------------------------------------------
     print("-------------------------------Loading Dataset-------------------------------")
-    binary_message = "converting to binary pixels.." if args.binary else "converting to grayscale pixels.."
-    if args.data == "IR": # TODO convert to args.data as a list of sub datasets
-        print("Loading IR data, and " + binary_message)
-        images, labels = create_ir_data(tresh=tresh, binary=args.binary)
 
-    elif args.data == "RGB":
-        print("Loading RGB data, and " + binary_message)
-        images, labels = create_RGB_data(tresh=tresh, binary=args.binary, verbose=2)
-
-    elif args.data == "RGB2":
-        print("Loading RGB data, and " + binary_message)
-        images, labels = create_RGB2_data(tresh=tresh, binary=args.binary, verbose=2)
-
-    elif args.data == "Both":
-        print("Loading Both IR and RGB data, and " + binary_message)
-        IRimages, IRlabels = create_ir_data(tresh=tresh, binary=args.binary)
-        RGBimages, RGBlabels = create_RGB_data(tresh=tresh, binary=args.binary, verbose=2)
-        images = np.concatenate((IRimages, RGBimages), axis = 0)
-        labels = np.concatenate((IRlabels, RGBlabels), axis = 0)
-
-    elif args.data == "BothRGB":
-        print("Loading Both RGB and RGB2 data, and " + binary_message)
-        RGB2images, RGB2labels = create_RGB2_data(verbose=2, binary=args.binary)
-        RGBimages, RGBlabels = create_RGB_data(verbose=2, binary=args.binary)
-        images = np.concatenate((RGB2images, RGBimages), axis=0)
-        labels = np.concatenate((RGB2labels, RGBlabels), axis=0)
-
-    else:
-        raise SystemExit("Typo is dataset name")
+    images, labels = prep_data(data=args.data,
+                               binary=args.binary,
+                               res=(64, 32),
+                               thresh=args.threshold,
+                               verbose = 2)
 
     if images.ndim == 3: # for 1 channel images
         images = np.expand_dims(images, axis=-1)
@@ -217,14 +199,20 @@ def main(verbose = 2):
 
     if "trans" in augmentations:
         for aug in augmentations:
-            if type(aug) == int:
-                print("Translating by {}".format(aug))
-                max_pixel_trans = aug
+            if aug.isnumeric():
+
+                max_pixel_trans = int(aug)
+                print("Translating by {} horizontaly and"
+                      " by {} verticaly".format(2 * max_pixel_trans, max_pixel_trans))
+                if max_pixel_trans >= 4:
+                    print("WARNING: outofbounds check is not preformed for the landmark")
+                if x_train.ndim == 3:  # for 1 channel images
+                    x_train = np.expand_dims(x_train, axis=-1)
                 x_train, y_train = translate_img_landmark(x_train, y_train,
                                                           max_x=2*max_pixel_trans,
                                                           max_y=max_pixel_trans,
                                                           iterations=4)
-                break
+
     print("splitting valset from testset")
     x_val, x_test, y_val, y_test = train_test_split(x_test, y_test, test_size=0.4, random_state=7)
     print("final datasets sizes:")
@@ -263,7 +251,10 @@ def main(verbose = 2):
             model = models.CNN_small_regression(input_shape=x_train[4].shape)
             print("Loaded {} model".format(args.arch))
         elif args.arch == "medium":
-            model = models.CNN_medium_regression(input_shape=x_train[4].shape, filters=args.filters)
+            l2_weight_regulaizer = 0.0008
+            model = models.CNN_medium_regression(input_shape=x_train[4].shape,
+                                                 filters=args.filters,
+                                                 l2_weight_regulaizer = l2_weight_regulaizer)
             print("Loaded {} model".format(args.arch))
         else:
             raise SystemExit("no model found", args.arch, type(args.arch))
@@ -299,20 +290,17 @@ def main(verbose = 2):
                         validation_data=(x_val, y_val),
                         verbose=2,
                         callbacks=callbacks)
-    # final_model_path = os.path.join(log_folder, "final_model")
-    # print(f"Saving best result at {final_model_path}")
-    # model.save(final_model_path)
-    # not needed, best model already saved by checkpointer
+
     #  ---------------------------------------Evaluate the model ------------------------------------------------------
     print("--------------------------------Evaluating Model---------------------------------------")
 
     _, train_mse = model.evaluate(x_train, y_train, verbose=0)
     _, validation_mse = model.evaluate(x_val, y_val, verbose=0)
     _, test_mse = model.evaluate(x_test, y_test, verbose=0)
-    print('Train MSE: %.5f' % train_mse)
-    print('validation MSE: %.5f' % validation_mse)
+    print('Train MSE: %.7f' % train_mse)
+    print('validation MSE: %.7f' % validation_mse)
 
-    print('Test MSE: %.5f' % test_mse)
+    print('Test MSE: %.7f' % test_mse)
 
     utils.plot_acc_lss(history, metric1=loss, metric2=loss, log_dir=log_folder)
     image_utils.plot_example_images(x_test, model.predict(x_test),
@@ -335,6 +323,8 @@ def main(verbose = 2):
         aug_log = ""
         for augmentation in augmentations:
             aug_log += str(augmentation)+"_"
+        if len(aug_log) > 1:
+            aug_log = aug_log[:-1]
         csv_line = [batch_size, epochs, learning_rate, arch, test_mse, args.data, args.phase, pixel_format, aug_log]
 
         with open(csv_path, "a", newline='') as csvfile:
