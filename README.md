@@ -10,7 +10,7 @@
 `python Inference.py -v <relative/path/to/video>`
 
 options:  
--a :    int, if larger than 1, a running average of prediction of the last <a> will be displayed  
+-a :    int, if larger than 1, a running average of prediction of the last will be displayed  
 --save: bool, if True, will save result in the saved model's dir  
 
 The script will prompt the user to choose a folder containing a saved model for inference.  
@@ -41,3 +41,22 @@ alternativly, supply with new datasets and load them
                              and vertically up to 2*<int>  
                              
 The script will prompt the user to choose a folder containing a saved model if the phase is 'retrain'.  
+
+# Preproccess Experimenting  
+
+A simple GUI is available to eperiment with various preproccesses.  
+The GUI runs a video in loops, while implementing Thresholding via bars.  
+Based on the code provided at:   
+https://docs.opencv.org/3.4/da/d97/tutorial_threshold_inRange.html  
+
+To run:
+`python Threshold_experimenting.py -v <relative/path/to/video>`
+
+With options:
+
+-v :name of video file to experiment on  
+-r : resolution change of the input video. with be resized back for display  
+-t : Threshold (Hmin, Hmax, Smin, Smax, Vmin, Vmax)  
+-bin: '-bin True' for converting data to binary pixels, ignore for False   
+
+`

@@ -70,12 +70,12 @@ def on_high_V_thresh_trackbar(val):
 
 
 parser = argparse.ArgumentParser(description='Code for Thresholding Operations using inRange tutorial.')
-parser.add_argument('--video', help='video or 0 for camera', default="vid5.mp4")
-parser.add_argument('--change_res', nargs='+', help='change the res?', default=[64, 32])
+parser.add_argument('-v', '--video', help='video or 0 for camera', default="vid5.mp4")
+parser.add_argument('-r', '--change_res', nargs='+', help='change the res?', default=[64, 32])
 parser.add_argument('-t', '--threshold', help=' threshold (Hmin, Hmax, Smin, Smax, Vmin, Vmax)',
                     nargs='+',
                     default=(83, 135, 0, 255, 0, 162)) # (90//2, 270//2, 0, 255, 0, 100))
-# (83, 135, 0, 255, 0, 162)
+
 parser.add_argument('-bin', '--binary',
                     default=False,
                     type=bool,
@@ -108,7 +108,9 @@ while True:
     frame_HSV = cv.cvtColor(frame, cv.COLOR_BGR2HSV)
     frame_threshold = cv.inRange(frame_HSV, (low_H, low_S, low_V), (high_H, high_S, high_V))
     frame_new = cv.bitwise_and(frame_HSV, frame_HSV, mask=frame_threshold)
-    frame_new = cv.resize(frame_new, (res[0], res[1]), fx=0, fy=0, interpolation=cv.INTER_CUBIC)
+    if args.change_res is not None:
+        res = list(map(int, args.change_res))
+        frame_new = cv.resize(frame_new, (res[0], res[1]), fx=0, fy=0, interpolation=cv.INTER_CUBIC)
     if args.binary:
         _, frame_new = cv.threshold(frame_new, 0, 255, cv.THRESH_BINARY)
     frame_new = frame_new[:, :, 0]
