@@ -70,7 +70,7 @@ def on_high_V_thresh_trackbar(val):
 
 
 parser = argparse.ArgumentParser(description='Code for Thresholding Operations using inRange tutorial.')
-parser.add_argument('-v', '--video', help='video or 0 for camera', default="vid5.mp4")
+parser.add_argument('-v', '--video', help='video or 0 for camera', default=0)
 parser.add_argument('-r', '--change_res', nargs='+', help='change the res?', default=[64, 32])
 parser.add_argument('-t', '--threshold', help=' threshold (Hmin, Hmax, Smin, Smax, Vmin, Vmax)',
                     nargs='+',

@@ -54,16 +54,16 @@ def parse_args():
                         type=float,
                         default=0.001,
                         help='learning rate')
-    parser.add_argument('--reducelr',
+    parser.add_argument('-rlr', '--reducelr',
                         type=int,
                         default=100000,
                         help='by how much to reduce learning rate')
-    parser.add_argument('--log_dir',
+    parser.add_argument('-log', '--log_dir',
                         type=str,
                         default='',
                         help='Directory name to save training logs, '
                              'any pictures and saved models')
-    parser.add_argument('--blocks',
+    parser.add_argument('-bk', '--blocks',
                         default = 2,
                         help="num of blocks for a block type architecture")
     parser.add_argument('--arch',
@@ -74,11 +74,11 @@ def parse_args():
                         type=bool,
                         help="'-bin True' for converting data to binary pixels, "
                              "ignore for False ")
-    parser.add_argument('--threshold',
+    parser.add_argument('-t', '--threshold',
                         nargs='+',
-                        default=(79 // 2, 284 // 2, 0, 255, 0, 107),
+                        default=1,
                         help=' threshold (Hmin, Hmax, Smin, Smax, Vmin, Vmax) for '
-                             'image preproccessing')
+                             'image preproccessing. or an int for picked values for dictionary')
     parser.add_argument('--filters',
                         nargs='+',
                         default=(16, 32, 64),
@@ -146,12 +146,30 @@ def main(verbose = 2):
     batch_size = args.batch_size
     loss = 'mean_squared_error'
 
+    Thresholds = {"1": (40, 142, 0, 255, 0, 107),
+                  "2": (83, 135, 0, 255, 0, 162),
+                  "3": (60, 140, 0, 255, 0, 130)}
+
+    if len(args.threshold) == 6:
+        threshold = args.threshold
+        threshold_log = "_".join(args.threshold)
+    else:
+        assert len(args.threshold) == 1
+
+        threshold = Thresholds[args.threshold[0]]
+        threshold_log = args.threshold[0]
+
     # ---------------------log folder creation---------------------------------------------------------------
     print("-----------------------------Creating Log Folder-----------------------------")
 
-    template = "BatchSize_{}_Epochs_{}_LearningRate_{}_model_{}_data_{}_phase_{}"
-    if args.binary:
-        template += "_binary"
+    pixel_format = "binary" if args.binary else "grayscale"
+
+    aug_log = ""
+    for augmentation in args.augmentation:
+        aug_log += str(augmentation) + "_"
+    if len(aug_log) > 1:
+        aug_log = aug_log[:-1]
+
     if args.arch == "medium":
         arch = "medium{}_{}_{}".format(args.filters[0],
                                        args.filters[1],
@@ -161,12 +179,19 @@ def main(verbose = 2):
     else:
         arch = args.arch
 
+    template = "BatchSize_{}_Epochs_{}_LearningRate_{}_model_{}_data_{}_phase_{}_aug_{}_thresh_{}"
+    if args.binary:
+        template += "_binary"
+
     config = template.format(batch_size,
                              epochs,
                              str(learning_rate)[2:],
                              arch,
                              "".join(args.data),
-                             args.phase)
+                             args.phase,
+                             aug_log,
+                             threshold_log)
+
     if type(args.log_dir) is str and args.log_dir != "":
         log_folder = "log/{}".format(args.log_dir)
     else:
@@ -181,7 +206,7 @@ def main(verbose = 2):
     images, labels = prep_data(data=args.data,
                                binary=args.binary,
                                res=(64, 32),
-                               thresh=args.threshold,
+                               thresh=threshold,
                                verbose = 2)
 
     if images.ndim == 3: # for 1 channel images
@@ -318,14 +343,9 @@ def main(verbose = 2):
         csv_path = os.path.join(os.path.dirname(os.path.realpath('__file__')),
                                 'experiment_results.csv')
         print("saveing config and results at: \n{}".format(csv_path))
-        # arch = "block{}".format(args.blocks) if args.arch == "blocks" else args.arch
-        pixel_format = "binary" if args.binary else "grayscale"
-        aug_log = ""
-        for augmentation in augmentations:
-            aug_log += str(augmentation)+"_"
-        if len(aug_log) > 1:
-            aug_log = aug_log[:-1]
-        csv_line = [batch_size, epochs, learning_rate, arch, test_mse, args.data, args.phase, pixel_format, aug_log]
+
+        csv_line = [batch_size, epochs, learning_rate, arch, test_mse, args.data, args.phase,
+                    pixel_format, aug_log, threshold_log]
 
         with open(csv_path, "a", newline='') as csvfile:
             csvwriter = csv.writer(csvfile)

@@ -146,7 +146,7 @@ def CNN_medium_regression(input_shape,
     :param kernel:
     :return:
     """
-    fc = 64 # TODO change to 32
+    fc = 32
     inputs = tf.keras.layers.Input(input_shape)
     x = inputs
     print("Building medium CNN regression model")
