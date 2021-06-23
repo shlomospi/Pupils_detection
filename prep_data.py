@@ -396,10 +396,12 @@ def view_preproccessed_dataset(data=None,
                                res=(64, 32),
                                fps=5,
                                verbose=2,
+                               suffix=None,
                                thresh=(79 // 2, 284 // 2, 0, 255, 0, 107),
                                binary=False):
     """
     loads selected dataset, preproccesses them and creates a video from it
+    :param suffix:
     :param verbose:
     :param data:
     :param thresh:
@@ -418,6 +420,10 @@ def view_preproccessed_dataset(data=None,
                                thresh=thresh)
     pixel_type = "binary" if binary else "gray"
     name = "{}_{}".format(data_name, pixel_type)
+    if suffix is not None:
+        if type(str) is not str:
+            suffix = str(suffix)
+        name += "_" + suffix
     view_dataset(images,
                  labels,
                  name=name,
@@ -596,6 +602,7 @@ if __name__ == '__main__':
     prep_args = prep_parser.parse_args()
     if prep_args.mode == "prep":
         view_preproccessed_dataset(data=prep_args.data,
+                                   suffix=None,
                                    res=(64, 32),
                                    fps=2,
                                    binary=prep_args.binary)
