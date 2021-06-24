@@ -7,20 +7,27 @@
 
 # inference
 
-`python Inference.py -v <relative/path/to/video>`
+`python Inference.py`
 
 options:  
--a :    int, if larger than 1, a running average of prediction of the last will be displayed  
---save: bool, if True, will save result in the saved model's dir  
-
+-a     :    int, if larger than 1, a running average of prediction of the last will be displayed  
+--save : bool, if True, will save result in the saved model's dir  
+-v     : path/to/video. Otherwise, will use camera.  
+--load: 'choice' to choose saved model manually. Otherwise, will use model in "saved_model" folder.  
 The script will prompt the user to choose a folder containing a saved model for inference.  
-
+-o     : "preproccessed" to save frames after preproccessing.  
+-t     : Threshold for preproccesing. For now, needed to be adjusted to the trained model version.  
+-bin   : True for conversion of pixels to binary values after preproccessing, if thresholding is being used.  
 # training
 
-For training, folders of images and videos are needed to be added to the directory:  
+For training, first add to project's directory folders of the dataset:  
+
 images_dataset  
 images_from_videos1_dataset  
+images_from_videos3_dataset  
+images_from_camera1_dataset  
 IR videos  
+
 alternativly, supply with new datasets and load them  
 
 `python Main.py`
@@ -29,7 +36,7 @@ alternativly, supply with new datasets and load them
 -e: The maximal number of epochs to run  
 -b: The size of a batch  
 --lr: learning rate  
---reducelr: by how much to reduce learning rate  
+--rlr: by how much to reduce learning rate  
 --log_dir: Directory name to save training logs, any pictures and saved models  
 --blocks: num of blocks for a block type architecture  
 --arch: small/blocks/medium  

@@ -16,3 +16,6 @@
 /images_from_videos3_dataset/
 /log_128_72/
 /dataset_folders_pupils.zip
+/saved_model/output__inference_original.mp4
+/saved_model/output_test1_inference_original.mp4
+/saved_model/output_vid5_inference_original.mp4
