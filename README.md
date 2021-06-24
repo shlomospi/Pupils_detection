@@ -44,8 +44,8 @@ alternativly, supply with new datasets and load them
 --arch: what dataset to load (IR/RGB/Both/BothRGB)  
 --treshold: threshold (Hmin, Hmax, Smin, Smax, Vmin, Vmax) for image preproccessing  
 --filters: filters for "medium" net  
--a: what augmentation to do? flip for flipingLR trans and an int for translating horizontaly up to <int>  
-                             and vertically up to 2*<int>  
+-a: what augmentation to do? flip for flipingLR trans and an int for translating horizontaly up to "int" 
+                             and vertically up to 2*"int"  
                              
 The script will prompt the user to choose a folder containing a saved model if the phase is 'retrain'.  
 
