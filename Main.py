@@ -9,15 +9,10 @@ from sklearn.model_selection import train_test_split
 import utils
 from prep_data import *
 import argparse
-from clearml import Task
+
 from tkinter import Tk, filedialog
 from config import config
 
-"""
-# ----------------------------------------clear ml init-----------------------------------------------------------------
-
-task = Task.init()
-"""
 # ----------------------------------------tkinter init-----------------------------------------------------------------
 
 root = Tk()
@@ -69,7 +64,7 @@ def parse_args():
                         default = 2,
                         help="num of blocks for a block type architecture")
     parser.add_argument('--arch',
-                        default="arch",
+                        default="medium",
                         help="small/blocks/medium")
     parser.add_argument('-bin', '--binary',
                         default=False,
@@ -78,24 +73,21 @@ def parse_args():
                              "ignore for False ")
     parser.add_argument('-t', '--threshold',
                         nargs='+',
-                        default=1,
+                        default=["0"],
                         help=' threshold (Hmin, Hmax, Smin, Smax, Vmin, Vmax) for '
                              'image preproccessing. or an int for picked values for dictionary')
     parser.add_argument('--filters',
                         nargs='+',
-                        default=(16, 32, 64),
+                        default=(32, 64, 128),
                         help='filters for "medium" net')
     parser.add_argument('-a', '--augmentation',
                         nargs='+',
-                        default=["flip", "trans", 3],
+                        default=["flip"],
                         help='what augmentation to do? '
                              'flip for flipingLR trans and an int for '
                              'translating horizontaly up to <int> '
                              'and vertically up to 2*<int>')
-    # parser.add_argument("--res",
-    #                     nargs="+",
-    #                     default = (64, 32),
-    #                     help="What resolution should be fed to the model?")
+
     return check_args(parser.parse_args())
 
 
@@ -142,7 +134,7 @@ def check_args(args):
     return args
 
 
-def main(verbose = 3):
+def main(verbose = 0):
     #  -----------------------------------------parameters------------------------------------------------------------
     print("\n\nInit..")
     print("-----------------------------------Parsing-----------------------------------")
@@ -152,11 +144,6 @@ def main(verbose = 3):
     batch_size = args.batch_size
     loss = 'mean_squared_error'
     Thresholds = config["thresholds"]
-    # Thresholds = {"0": (0, 0, 0, 0, 0, 0),
-    #               "1": (40, 142, 0, 255, 0, 107),
-    #               "2": (83, 135, 0, 255, 0, 162),
-    #               "3": (60, 140, 0, 255, 0, 130),
-    #               "4": (0, 180, 0, 255, 0, 255)}
     res = config["res"]
     if len(args.threshold) == 6:
         threshold = args.threshold
@@ -231,21 +218,21 @@ def main(verbose = 3):
         print("Flipping")
         x_train, y_train = flipLR_img_landmark(x_train, y_train)
 
-    if "trans" in augmentations:
-        for aug in augmentations:
-            if aug.isnumeric():
-
-                max_pixel_trans = int(aug)
-                print("Translating by {} horizontaly and"
-                      " by {} verticaly".format(2 * max_pixel_trans, max_pixel_trans))
-                if max_pixel_trans >= 4:
-                    print("WARNING: outofbounds check is not preformed for the landmark")
-                if x_train.ndim == 3:  # for 1 channel images
-                    x_train = np.expand_dims(x_train, axis=-1)
-                x_train, y_train = translate_img_landmark(x_train, y_train,
-                                                          max_x=2*max_pixel_trans,
-                                                          max_y=max_pixel_trans,
-                                                          iterations=4)
+    # if "trans" in augmentations: # TODO Broken, fix
+    #     for aug in augmentations:
+    #         if aug.isnumeric():
+    #
+    #             max_pixel_trans = int(aug)
+    #             print("Translating by {} horizontaly and"
+    #                   " by {} verticaly".format(2 * max_pixel_trans, max_pixel_trans))
+    #             if max_pixel_trans >= 4:
+    #                 print("WARNING: outofbounds check is not preformed for the landmark")
+    #             if x_train.ndim == 3:  # for 1 channel images
+    #                 x_train = np.expand_dims(x_train, axis=-1)
+    #             x_train, y_train = translate_img_landmark(x_train, y_train,
+    #                                                       max_x=2*max_pixel_trans,
+    #                                                       max_y=max_pixel_trans,
+    #                                                       iterations=4)
 
     print("splitting valset from testset")
     x_val, x_test, y_val, y_test = train_test_split(x_test, y_test, test_size=0.4, random_state=7)

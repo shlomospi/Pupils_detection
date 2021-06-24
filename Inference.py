@@ -30,12 +30,16 @@ def parse_args():
     # inf_parser.add_argument("-i", "--image_folder", type=str, default="", help='image path') # TODO
     inf_parser.add_argument("-v", '--video',
                             type=str,
-                            default="",
+                            default="0",
                             help='video path')
     inf_parser.add_argument("--save",
                             type=bool,
                             default=True,
                             help="save the results?")
+    inf_parser.add_argument("--load",
+                            type=str,
+                            default='saved',
+                            help="Load by 'choice' or 'saved' model?")
     inf_parser.add_argument("-a", "--average",
                             type=int,
                             default=1,
@@ -47,7 +51,7 @@ def parse_args():
                                  '"preproccessed" to show on preproccessed frames')
     inf_parser.add_argument('-t', '--threshold',
                             nargs='+',
-                            default=1,
+                            default=["0"],
                             help=' threshold (Hmin, Hmax, Smin, Smax, Vmin, Vmax) for '
                                  'image preproccessing. or an int for picked values for dictionary')
     inf_parser.add_argument('-bin', '--binary',
@@ -63,7 +67,7 @@ def check_args(args):
     # --phase
     try:
 
-        assert type(args.video) is str
+        assert type(args.video) is str or args.video == 0
     except ValueError:
         print('video path must be a string, instred got:\n{}\n{}'.format(args.video, type(args.video)))
 
@@ -93,8 +97,11 @@ def main():
 
     low_H, high_H, low_S, high_S, low_V, high_V = thresh # 79 // 2, 284 // 2, 0, 255, 0, 107
     mode = "video" if args.video != "" else "images"
-    print("Waiting for saved model..")
-    model_path = filedialog.askdirectory()  # Choose
+    if args.load == "choice":
+        print("Waiting for saved model..")
+        model_path = filedialog.askdirectory()  # Choose
+    else:
+        model_path = "saved_model"
     try:
         model = tf.keras.models.load_model(model_path)
         model.summary()
@@ -108,7 +115,7 @@ def main():
         else:
             fileDir = os.path.dirname(os.path.realpath('__file__'))
             video_path = os.path.join(fileDir, args.video)
-        print("Loading video file from: \n{}".format(video_path))
+            print("Loading video file from: \n{}".format(video_path))
         vid = cv.VideoCapture(video_path)
         width = int(vid.get(cv.CAP_PROP_FRAME_WIDTH))
         height = int(vid.get(cv.CAP_PROP_FRAME_HEIGHT))

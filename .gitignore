@@ -1,8 +1,6 @@
 /log/
 /inferno/
-/BatchSize_64_Epochs_2_LearningRate_0002_saved_model/
 /dsp-ip/
-/saved_model/
 /images_dataset/
 /images_from_videos1_dataset/
 /IR videos/
@@ -14,3 +12,7 @@
 /preproccess.py
 /experiment_results.csv
 /convert_threshold.py
+/images_from_camera1_dataset/
+/images_from_videos3_dataset/
+/log_128_72/
+/dataset_folders_pupils.zip

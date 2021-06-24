@@ -186,6 +186,22 @@ def create_RGB3_data(res=(64, 32), normalize=True, thresh=(79//2, 284//2, 0, 255
                          binary=binary, thresh=thresh, verbose=verbose)
 
 
+def create_RGB4_data(res=(64, 32), normalize=True, thresh=(79//2, 284//2, 0, 255, 0, 107),
+                     binary=False, verbose=0):
+    """
+    creates a dataset from images and a csv file in the "images_from_videos1_dataset" directory.
+    This dataset was created by inference of the inferno_labeler.py script on 5 videos.
+    :param res: x,y final resolution
+    :param normalize: Should the landmarks be normalized
+    :param thresh: threshold limits
+    :param binary: True for binary pixels, False for grayscale
+    :param verbose:
+    :return: x_dataset, y_dataset
+    """
+
+    return img_txt_to_np("images_from_camera1_dataset", res=res, normalize=normalize,
+                         binary=binary, thresh=thresh, verbose=verbose)
+
 def img_preproccess(image,
                     res=(64, 32),
                     thresh=(79 // 2, 284 // 2, 0, 255, 0, 107),
@@ -473,9 +489,10 @@ def view_dataset(images,
     cv.namedWindow("output", cv.WINDOW_NORMAL)
     cv.resizeWindow('output', width, height)
     codec = cv.VideoWriter_fourcc(*'XVID') # 'RGBA') # 'MJPG') # 'XVID')
-    output_video_path = os.path.join("preproccessed_video_of_{}.avi".format(name))
+    fileDir = os.path.dirname(os.path.realpath('__file__'))
+    output_video_path = os.path.join(fileDir, "preproccessed_video_of_{}.avi".format(name))
     out = cv.VideoWriter(output_video_path, codec, fps, (width, height))
-
+    print("saving at:\n{}".format(output_video_path))
     data_size = images.shape[0]
     for img_num in range(data_size):
         image = images[img_num]
@@ -503,7 +520,7 @@ def prep_data(data=None,
     :param thresh:
     :return:
     """
-    known_dataset = ["IR", "RGB", "RGB2", "RGB3"]
+    known_dataset = ["IR", "RGB", "RGB2", "RGB3", "RGB4"]
     binary_message = "converting to binary pixels.." if binary \
         else "converting to grayscale pixels.."
     print("Loading {} data, and ".format(",".join(data)) + binary_message)
@@ -553,12 +570,22 @@ def prep_data(data=None,
         for label in labels:
             landmarks.append(label)
 
+    if "RGB4" in data:
+
+        images, labels = create_RGB4_data(thresh=thresh, binary=binary,
+                                          res=res, verbose=verbose)
+        for image in images:
+            img_arrays.append(image)
+        for label in labels:
+            landmarks.append(label)
+
     img_arrays = np.asarray(img_arrays)
     landmarks = np.asarray(landmarks)
     if verbose > 2:
         image_utils.plot_example_images(np.expand_dims(img_arrays, axis=-1),
                                         landmarks,
                                         title="examples from loaded dataset")
+
     return img_arrays, landmarks
 
 
@@ -612,6 +639,8 @@ def view_augmentation(data=None,
 
 
 if __name__ == '__main__':
+    res = config["res"]
+
     prep_parser = argparse.ArgumentParser(description="perp data")
     prep_parser.add_argument("-d", '--data',
                              nargs='+',
@@ -624,6 +653,11 @@ if __name__ == '__main__':
     prep_parser.add_argument("-m", "--mode",
                              default="prep",
                              help="what mode to activate: prep/augs")
+    prep_parser.add_argument('-t', '--threshold',
+                             nargs='+',
+                             default=["0"],
+                             help=' threshold (Hmin, Hmax, Smin, Smax, Vmin, Vmax) for '
+                                  'image preproccessing. or an int for picked values for dictionary')
     prep_parser.add_argument("-a", "--augs",
                              nargs='+',
                              default=["flip", "trans", 2],
@@ -632,10 +666,17 @@ if __name__ == '__main__':
                                   "trans(if included, you must also add an int to the list for maximal translation")
     prep_args = prep_parser.parse_args()
     # TODO add assertions
+
+    if len(prep_args.threshold) == 6:
+        threshold = prep_args.threshold
+    else:
+        assert len(prep_args.threshold) == 1
+        threshold = config["thresholds"][prep_args.threshold[0]]
+
     if prep_args.mode == "prep":
         view_preproccessed_dataset(data=prep_args.data,
                                    suffix=None,
-                                   res=(64, 32),
+                                   res=res,
                                    fps=2,
                                    thresh=(0, 0, 0, 0, 0, 0),
                                    binary=prep_args.binary)
@@ -643,7 +684,7 @@ if __name__ == '__main__':
         view_augmentation(data=prep_args.data,
                           augs=prep_args.augs,
                           binary=prep_args.binary,
-                          res=(64, 32),
+                          res=res,
                           verbose=2,
                           thresh=(79 // 2, 284 // 2, 0, 255, 0, 107),
                           fps=2)
