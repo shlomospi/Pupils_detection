@@ -11,6 +11,8 @@ from prep_data import *
 import argparse
 from clearml import Task
 from tkinter import Tk, filedialog
+from config import config
+
 """
 # ----------------------------------------clear ml init-----------------------------------------------------------------
 
@@ -90,6 +92,10 @@ def parse_args():
                              'flip for flipingLR trans and an int for '
                              'translating horizontaly up to <int> '
                              'and vertically up to 2*<int>')
+    # parser.add_argument("--res",
+    #                     nargs="+",
+    #                     default = (64, 32),
+    #                     help="What resolution should be fed to the model?")
     return check_args(parser.parse_args())
 
 
@@ -136,7 +142,7 @@ def check_args(args):
     return args
 
 
-def main(verbose = 2):
+def main(verbose = 3):
     #  -----------------------------------------parameters------------------------------------------------------------
     print("\n\nInit..")
     print("-----------------------------------Parsing-----------------------------------")
@@ -145,11 +151,13 @@ def main(verbose = 2):
     learning_rate = args.lr
     batch_size = args.batch_size
     loss = 'mean_squared_error'
-
-    Thresholds = {"1": (40, 142, 0, 255, 0, 107),
-                  "2": (83, 135, 0, 255, 0, 162),
-                  "3": (60, 140, 0, 255, 0, 130)}
-
+    Thresholds = config["thresholds"]
+    # Thresholds = {"0": (0, 0, 0, 0, 0, 0),
+    #               "1": (40, 142, 0, 255, 0, 107),
+    #               "2": (83, 135, 0, 255, 0, 162),
+    #               "3": (60, 140, 0, 255, 0, 130),
+    #               "4": (0, 180, 0, 255, 0, 255)}
+    res = config["res"]
     if len(args.threshold) == 6:
         threshold = args.threshold
         threshold_log = "_".join(args.threshold)
@@ -171,9 +179,10 @@ def main(verbose = 2):
         aug_log = aug_log[:-1]
 
     if args.arch == "medium":
-        arch = "medium{}_{}_{}".format(args.filters[0],
-                                       args.filters[1],
-                                       args.filters[2]) # TODO scale for more than 3 layers
+        arch = "medium"
+        for f in args.filters:
+            arch += "_{}".format(f)
+
     elif args.arch == "blocks":
         arch = "block{}".format(args.blocks)
     else:
@@ -183,31 +192,31 @@ def main(verbose = 2):
     if args.binary:
         template += "_binary"
 
-    config = template.format(batch_size,
-                             epochs,
-                             str(learning_rate)[2:],
-                             arch,
-                             "".join(args.data),
-                             args.phase,
-                             aug_log,
-                             threshold_log)
-
+    config_log = template.format(batch_size,
+                                 epochs,
+                                 str(learning_rate)[2:],
+                                 arch,
+                                 "".join(args.data),
+                                 args.phase,
+                                 aug_log,
+                                 threshold_log)
+    main_log_folder = "log_" + "_".join([str(coord) for coord in config["res"]])
     if type(args.log_dir) is str and args.log_dir != "":
-        log_folder = "log/{}".format(args.log_dir)
+        log_folder = os.path.join(main_log_folder, args.log_dir) # "log/{}".format(args.log_dir)
     else:
         date = datetime.now().strftime("%d%m%Y_%H%M")
-        log_folder = "log/{}".format(date + "_" + config)
+        log_folder = os.path.join(main_log_folder, date + "_" + config_log) # "log/{}".format(date + "_" + config_log)
         print("log folder: {}".format(log_folder))
     utils.check_folder(log_folder)  # check and create
-
+    # TODO create config file in log folder, load from it at inference
     # ----------------------Loading  dataset--------------------------------------------------------------
     print("-------------------------------Loading Dataset-------------------------------")
 
     images, labels = prep_data(data=args.data,
                                binary=args.binary,
-                               res=(64, 32),
+                               res=res,
                                thresh=threshold,
-                               verbose = 2)
+                               verbose = verbose)
 
     if images.ndim == 3: # for 1 channel images
         images = np.expand_dims(images, axis=-1)

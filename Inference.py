@@ -8,8 +8,8 @@ import time
 from image_utils import *
 from tkinter import Tk, filedialog
 from prep_data import *
+from config import config
 
-# TODO add option to see inference on preproccessed
 # ----------------------------------------GPU check---------------------------------------------------------------------
 os.environ['CUDA_VISIBLE_DEVICES'] = "0"
 
@@ -45,6 +45,16 @@ def parse_args():
                             default="original",
                             help='"original" to show inference on original image, '
                                  '"preproccessed" to show on preproccessed frames')
+    inf_parser.add_argument('-t', '--threshold',
+                            nargs='+',
+                            default=1,
+                            help=' threshold (Hmin, Hmax, Smin, Smax, Vmin, Vmax) for '
+                                 'image preproccessing. or an int for picked values for dictionary')
+    inf_parser.add_argument('-bin', '--binary',
+                            default=False,
+                            type=bool,
+                            help="'-bin True' for converting data to binary pixels, "
+                                 "ignore for False ")
     return check_args(inf_parser.parse_args())
 
 
@@ -72,9 +82,16 @@ def str2bool(v):
 
 
 def main():
-    res = (64, 32)
+    res = config["res"]
     args = parse_args()
-    low_H, high_H, low_S, high_S, low_V, high_V = 79 // 2, 284 // 2, 0, 255, 0, 107
+    binary = args.binary
+    if len(args.threshold) == 6:
+        thresh = args.threshold
+    else:
+        assert len(args.threshold) == 1
+        thresh = config["thresholds"][args.threshold[0]]
+
+    low_H, high_H, low_S, high_S, low_V, high_V = thresh # 79 // 2, 284 // 2, 0, 255, 0, 107
     mode = "video" if args.video != "" else "images"
     print("Waiting for saved model..")
     model_path = filedialog.askdirectory()  # Choose
@@ -116,17 +133,12 @@ def main():
             _, frame = vid.read()
 
             if frame is None:
-
                 break
 
             # original_res = (vid.get(4), vid.get(3)) # x, y
+            frame_new = img_preproccess(frame, res=res, thresh=thresh, binary=binary)
 
-            frame_resized = cv.resize(frame, res, fx=0, fy=0, interpolation=cv.INTER_CUBIC)
-            frame_HSV = cv.cvtColor(frame_resized, cv.COLOR_BGR2HSV)
-            frame_threshold = cv.inRange(frame_HSV, (low_H, low_S, low_V), (high_H, high_S, high_V))
-            frame_new = cv.bitwise_and(frame_HSV, frame_HSV, mask=frame_threshold)
-            frame_new = frame_new[:, :, 0]
-            frame_for_infer = frame_new.reshape(1, 32, 64, 1)
+            frame_for_infer = frame_new.reshape(1, res[1], res[0], 1)
             t1 = time.time()
             pred = model.predict(frame_for_infer)
             x, y = pred[0]

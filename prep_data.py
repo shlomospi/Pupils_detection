@@ -8,6 +8,7 @@ from tqdm import tqdm
 import tensorflow as tf
 # import tensorflow_addons as tfa
 import image_utils
+from config import config
 
 
 def video_csv_to_np_wrapper(data_path = "",
@@ -168,6 +169,23 @@ def create_RGB2_data(res=(64, 32), normalize=True, thresh=(79//2, 284//2, 0, 255
                          binary=binary, thresh=thresh, verbose=verbose)
 
 
+def create_RGB3_data(res=(64, 32), normalize=True, thresh=(79//2, 284//2, 0, 255, 0, 107),
+                     binary=False, verbose=0):
+    """
+    creates a dataset from images and a csv file in the "images_from_videos1_dataset" directory.
+    This dataset was created by inference of the inferno_labeler.py script on 5 videos.
+    :param res: x,y final resolution
+    :param normalize: Should the landmarks be normalized
+    :param thresh: threshold limits
+    :param binary: True for binary pixels, False for grayscale
+    :param verbose:
+    :return: x_dataset, y_dataset
+    """
+
+    return img_txt_to_np("images_from_videos3_dataset", res=res, normalize=normalize,
+                         binary=binary, thresh=thresh, verbose=verbose)
+
+
 def img_preproccess(image,
                     res=(64, 32),
                     thresh=(79 // 2, 284 // 2, 0, 255, 0, 107),
@@ -183,12 +201,15 @@ def img_preproccess(image,
     """
     low_H, high_H, low_S,  high_S, low_V, high_V = thresh
     resized_frame = cv.resize(image, res, fx=0, fy=0, interpolation=cv.INTER_CUBIC)
-    frame_HSV = cv.cvtColor(resized_frame, cv.COLOR_BGR2HSV)
-    frame_threshold = cv.inRange(frame_HSV, (low_H, low_S, low_V), (high_H, high_S, high_V))
-    frame_new = cv.bitwise_and(frame_HSV, frame_HSV, mask=frame_threshold)
-    if binary:
-        _, frame_new = cv.threshold(frame_new, 0, 255, cv.THRESH_BINARY)
-    frame_new = frame_new[:, :, 0]
+    if all(t == 0 for t in thresh):
+        frame_new = cv.cvtColor(resized_frame, cv.COLOR_BGR2GRAY)
+    else:
+        frame_HSV = cv.cvtColor(resized_frame, cv.COLOR_BGR2HSV)
+        frame_threshold = cv.inRange(frame_HSV, (low_H, low_S, low_V), (high_H, high_S, high_V))
+        frame_new = cv.bitwise_and(frame_HSV, frame_HSV, mask=frame_threshold)
+        if binary:
+            _, frame_new = cv.threshold(frame_new, 0, 255, cv.THRESH_BINARY)
+        frame_new = frame_new[:, :, 0]
     frame_array = np.asarray(frame_new)
 
     return frame_array
@@ -283,7 +304,6 @@ def view_img_dataset(folderpath="images_dataset"):
         image = cv.imread(image_path, cv.IMREAD_COLOR)
         image = np.asarray(image)
         label_line = utils.read_selected_line(labelpath, image_num)
-        # original_res = image.shape[:2]
         values = label_line.strip().split(" ")
         values = map(float, values)
         image = cross_annotator(image, values, color=(0, 250, 0), size=2)
@@ -293,10 +313,12 @@ def view_img_dataset(folderpath="images_dataset"):
 def flipLR_img_landmark(x_train, y_train):
     """
     flips and adds flipped images to input dataset with one landmark
-    :param x_train: images, nparray of shape (N,H,W,1)
+    :param x_train: images, nparray of shape (N,H,W,1) or (N,H,W,1)
     :param y_train: landmarks, nparray of shape (N,2)
     :return: x_train, y_train, with flipped version appended
     """
+    if x_train.ndim == 3:  # for 1 channel images
+        x_train = np.expand_dims(x_train, axis=-1)
     if y_train[0, 0] <= 1 and y_train[0, 1] <= 1:
         x_flipedlr = tf.image.flip_left_right(x_train)
         y_flipedlr = np.subtract([[1, 0]], y_train)
@@ -481,7 +503,7 @@ def prep_data(data=None,
     :param thresh:
     :return:
     """
-    known_dataset = ["IR", "RGB", "RGB2"]
+    known_dataset = ["IR", "RGB", "RGB2", "RGB3"]
     binary_message = "converting to binary pixels.." if binary \
         else "converting to grayscale pixels.."
     print("Loading {} data, and ".format(",".join(data)) + binary_message)
@@ -516,6 +538,15 @@ def prep_data(data=None,
     if "RGB2" in data:
 
         images, labels = create_RGB2_data(thresh=thresh, binary=binary,
+                                          res=res, verbose=verbose)
+        for image in images:
+            img_arrays.append(image)
+        for label in labels:
+            landmarks.append(label)
+
+    if "RGB3" in data:
+
+        images, labels = create_RGB3_data(thresh=thresh, binary=binary,
                                           res=res, verbose=verbose)
         for image in images:
             img_arrays.append(image)
@@ -585,7 +616,7 @@ if __name__ == '__main__':
     prep_parser.add_argument("-d", '--data',
                              nargs='+',
                              default=["RGB"],
-                             help='what data to load. available: RGB RGB2 IR')
+                             help='what data to load. available: RGB RGB2 RGB3 IR')
     prep_parser.add_argument('-bin', '--binary',
                              default=False,
                              type=bool,
@@ -600,11 +631,13 @@ if __name__ == '__main__':
                                   "flip/"
                                   "trans(if included, you must also add an int to the list for maximal translation")
     prep_args = prep_parser.parse_args()
+    # TODO add assertions
     if prep_args.mode == "prep":
         view_preproccessed_dataset(data=prep_args.data,
                                    suffix=None,
                                    res=(64, 32),
                                    fps=2,
+                                   thresh=(0, 0, 0, 0, 0, 0),
                                    binary=prep_args.binary)
     if prep_args.mode == "augs":
         view_augmentation(data=prep_args.data,
