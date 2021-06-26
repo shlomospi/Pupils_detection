@@ -659,7 +659,7 @@ def augmentor(images_, landmarks_, augments_num=4, someof=2, verbose =2):
                             iaa.AdditiveGaussianNoise(scale=(0, 0.01*255)),
                             iaa.Fliplr(1),
                             iaa.Crop(percent=(0, 0.1)),
-                            iaa.GaussianBlur(sigma=(0.0, 1.0)),
+                            # iaa.GaussianBlur(sigma=(0.0, 1.0)),
                             iaa.Affine(rotate=(-5, 5),
                                        scale=(0.9, 1.1),
                                        translate_percent={"x": (-0.2, 0.2), "y": (-0.1, 0.1)})

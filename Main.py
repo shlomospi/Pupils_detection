@@ -82,11 +82,8 @@ def parse_args():
                         help='filters for "medium" net')
     parser.add_argument('-a', '--augmentation',
                         nargs='+',
-                        default=["flip"],
-                        help='what augmentation to do? '
-                             'flip for flipingLR trans and an int for '
-                             'translating horizontaly up to <int> '
-                             'and vertically up to 2*<int>')
+                        default=["imgaug"],
+                        help='what augmentation to do? "imgaug"')
 
     return check_args(parser.parse_args())
 
@@ -134,7 +131,7 @@ def check_args(args):
     return args
 
 
-def main(verbose = 3):
+def main(verbose = 0):
     #  -----------------------------------------parameters------------------------------------------------------------
     print("\n\nInit..")
     print("-----------------------------------Parsing-----------------------------------")
@@ -205,20 +202,25 @@ def main(verbose = 3):
                                verbose = verbose,
                                normalize=False)
     print("Spliting..")
-    x_train, x_test, y_train, y_test = train_test_split(images, labels,
-                                                        test_size=0.1, random_state=42)
+    x_train, x_test, y_train, y_test = train_test_split(images,
+                                                        labels,
+                                                        test_size=0.1,
+                                                        random_state=42)
 
     if x_test.ndim == 3:  # for 1 channel images
         x_test = np.expand_dims(images, axis=-1)
-    # print(f"y_test shape :{y_test[0]}") #TODO tmp
-    y_test = normalize_coord_tensor(y_test, resolution)
-    print("augmenting..")
-    ne_images, ne_labels = augmentor(images, labels, someof=2, augments_num=5, verbose=2)
-    # print(f"y_train shape :{y_train[0]}")  # TODO tmp
 
-    x_train, y_train = concat_datasets(x_train, y_train, ne_images, ne_labels)
+    print("augmenting..")
+    if "imgaug" in augmentation:
+        ne_images, ne_labels = augmentor(images,
+                                         labels,
+                                         someof=2,
+                                         augments_num=20,
+                                         verbose=2)
+        x_train, y_train = concat_datasets(x_train, y_train, ne_images, ne_labels)
+
     y_train = normalize_coord_tensor(y_train, resolution)
-    # print(f"y_train shape :{y_train[0]}")  # TODO tmp
+    y_test = normalize_coord_tensor(y_test, resolution)
 
     print("splitting valset from testset")
     x_val, x_test, y_val, y_test = train_test_split(x_test, y_test, test_size=0.4, random_state=7)
@@ -327,7 +329,7 @@ def main(verbose = 3):
         print("-------------------------------Logging Experiment--------------------------------------")
         csv_path = os.path.join(os.path.dirname(os.path.realpath('__file__')),
                                 'experiment_results.csv')
-        print("saveing config and results at: \n{}".format(csv_path))
+        print("saving config and results at: \n{}".format(csv_path))
 
         csv_line = [batch_size, epochs, learning_rate, arch, test_mse, args.data, args.phase,
                     pixel_format, aug_log, threshold_log]

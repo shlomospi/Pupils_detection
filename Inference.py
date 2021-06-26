@@ -36,7 +36,7 @@ def parse_args():
                             type=bool,
                             default=True,
                             help="save the results?")
-    inf_parser.add_argument("--load",
+    inf_parser.add_argument("-l", "--load",
                             type=str,
                             default='saved',
                             help="Load by 'choice' or 'saved' model?")
