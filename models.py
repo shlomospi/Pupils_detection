@@ -146,13 +146,13 @@ def CNN_medium_regression(input_shape,
     :param kernel:
     :return:
     """
-    fc = 2 * int(filters[-1]) # change to 32
+    fc = 2 * int(filters[-1])
     inputs = tf.keras.layers.Input(input_shape)
     x = inputs
     print("Building medium CNN regression model")
     for (i, f) in enumerate(filters):
         # CONV 3by3 => RELU => BN => POOL
-        x = Conv2D(f, (3, 3), padding="same", activation='relu',
+        x = Conv2D(int(f), (3, 3), padding="same", activation='relu',
                    kernel_initializer=weight_initializer,
                    kernel_regularizer=l2(l2_weight_regulaizer))(x)
         x = BatchNormalization()(x)

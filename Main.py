@@ -134,7 +134,7 @@ def check_args(args):
     return args
 
 
-def main(verbose = 0):
+def main(verbose = 3):
     #  -----------------------------------------parameters------------------------------------------------------------
     print("\n\nInit..")
     print("-----------------------------------Parsing-----------------------------------")
@@ -198,41 +198,27 @@ def main(verbose = 0):
     # TODO create config file in log folder, load from it at inference
     # ----------------------Loading  dataset--------------------------------------------------------------
     print("-------------------------------Loading Dataset-------------------------------")
-
     images, labels = prep_data(data=args.data,
                                binary=args.binary,
                                res=resolution,
                                thresh=threshold,
-                               verbose = verbose)
-
-    if images.ndim == 3: # for 1 channel images
-        images = np.expand_dims(images, axis=-1)
-
+                               verbose = verbose,
+                               normalize=False)
     print("Spliting..")
     x_train, x_test, y_train, y_test = train_test_split(images, labels,
                                                         test_size=0.1, random_state=42)
+
+    if x_test.ndim == 3:  # for 1 channel images
+        x_test = np.expand_dims(images, axis=-1)
+    # print(f"y_test shape :{y_test[0]}") #TODO tmp
+    y_test = normalize_coord_tensor(y_test, resolution)
     print("augmenting..")
+    ne_images, ne_labels = augmentor(images, labels, someof=2, augments_num=5, verbose=2)
+    # print(f"y_train shape :{y_train[0]}")  # TODO tmp
 
-    augmentations = args.augmentation
-    if "flip" in augmentations:
-        print("Flipping")
-        x_train, y_train = flipLR_img_landmark(x_train, y_train)
-
-    # if "trans" in augmentations: # TODO Broken, fix
-    #     for aug in augmentations:
-    #         if aug.isnumeric():
-    #
-    #             max_pixel_trans = int(aug)
-    #             print("Translating by {} horizontaly and"
-    #                   " by {} verticaly".format(2 * max_pixel_trans, max_pixel_trans))
-    #             if max_pixel_trans >= 4:
-    #                 print("WARNING: outofbounds check is not preformed for the landmark")
-    #             if x_train.ndim == 3:  # for 1 channel images
-    #                 x_train = np.expand_dims(x_train, axis=-1)
-    #             x_train, y_train = translate_img_landmark(x_train, y_train,
-    #                                                       max_x=2*max_pixel_trans,
-    #                                                       max_y=max_pixel_trans,
-    #                                                       iterations=4)
+    x_train, y_train = concat_datasets(x_train, y_train, ne_images, ne_labels)
+    y_train = normalize_coord_tensor(y_train, resolution)
+    # print(f"y_train shape :{y_train[0]}")  # TODO tmp
 
     print("splitting valset from testset")
     x_val, x_test, y_val, y_test = train_test_split(x_test, y_test, test_size=0.4, random_state=7)
@@ -243,7 +229,10 @@ def main(verbose = 0):
     if verbose > 2:
         image_utils.plot_example_images(x_train, y_train,
                                         title="examples from the training dataset")
-
+        image_utils.plot_example_images(x_val, y_val,
+                                        title="examples from the val dataset")
+        image_utils.plot_example_images(x_test, y_test,
+                                        title="examples from the test dataset")
     # -------------------------------------Load & compile model---------------------------------------------------------
     print("----------------------------Loading & Compiling Model----------------------------------")
 

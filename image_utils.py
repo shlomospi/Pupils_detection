@@ -123,3 +123,18 @@ def normalize_coord(coords, img_shape):
     x_max, y_max = img_shape
 
     return x_coord/x_max, y_coord/y_max
+
+
+def normalize_coord_tensor(coords, img_shape, verbose=0):
+    new_coords = []
+    for coord in coords:
+        new_coord = normalize_coord(coord, img_shape)
+        new_coords.append(new_coord)
+    new_coords = np.asarray(new_coords)
+    if verbose > 1:
+        print(f"Normalized.\n"
+              f"original coordinates limits: {img_shape}.\n"
+              f"original example:{coords[0]}\n"
+              f"new:{new_coords[0]}")
+
+    return new_coords
