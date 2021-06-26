@@ -47,3 +47,5 @@ urllib3==1.26.5
 Werkzeug==2.0.1
 wrapt==1.12.1
 yarg==0.1.9
+imageio==2.9.0
+imgaug==0.4.0
