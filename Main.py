@@ -144,7 +144,7 @@ def main(verbose = 0):
     batch_size = args.batch_size
     loss = 'mean_squared_error'
     Thresholds = config["thresholds"]
-    res = config["res"]
+    resolution = config["res"]
     if len(args.threshold) == 6:
         threshold = args.threshold
         threshold_log = "_".join(args.threshold)
@@ -201,7 +201,7 @@ def main(verbose = 0):
 
     images, labels = prep_data(data=args.data,
                                binary=args.binary,
-                               res=res,
+                               res=resolution,
                                thresh=threshold,
                                verbose = verbose)
 

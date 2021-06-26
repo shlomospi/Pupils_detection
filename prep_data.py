@@ -202,6 +202,7 @@ def create_RGB4_data(res=(64, 32), normalize=True, thresh=(79//2, 284//2, 0, 255
     return img_txt_to_np("images_from_camera1_dataset", res=res, normalize=normalize,
                          binary=binary, thresh=thresh, verbose=verbose)
 
+
 def img_preproccess(image,
                     res=(64, 32),
                     thresh=(79 // 2, 284 // 2, 0, 255, 0, 107),
@@ -279,7 +280,8 @@ def img_txt_to_np(folderpath, res=(64, 32), thresh=(79//2, 284//2, 0, 255, 0, 10
         values = map(float, values)
         if normalize:
             values = normalize_coord(values, original_res)
-
+        else:  # resize landmarks
+            values = normalize_coord(values, [original_res[0]/res[0], original_res[1]/res[1]])
         label_list.append([values[0], values[1]])
 
     label_list = np.asarray(label_list)
@@ -473,7 +475,8 @@ def view_dataset(images,
                  labels,
                  name="dataset",
                  res=(64, 32),
-                 fps=3):
+                 fps=3,
+                 save=True):
     """
     loads selected dataset, preproccesses them and creates a video from it
     :param name:
@@ -487,20 +490,22 @@ def view_dataset(images,
     height = res[1]*10
 
     cv.namedWindow("output", cv.WINDOW_NORMAL)
-    cv.resizeWindow('output', width, height)
+    cv.resizeWindow("output", width, height)
     codec = cv.VideoWriter_fourcc(*'XVID') # 'RGBA') # 'MJPG') # 'XVID')
     fileDir = os.path.dirname(os.path.realpath('__file__'))
     output_video_path = os.path.join(fileDir, "preproccessed_video_of_{}.avi".format(name))
-    out = cv.VideoWriter(output_video_path, codec, fps, (width, height))
-    print("saving at:\n{}".format(output_video_path))
+    if save:
+        out = cv.VideoWriter(output_video_path, codec, fps, (width, height))
+        print("saving at:\n{}".format(output_video_path))
     data_size = images.shape[0]
     for img_num in range(data_size):
         image = images[img_num]
         label = labels[img_num]
         image = cross_annotator(image, label, size=2)
         image = cv.resize(image, (width, height), fx=0, fy=0, interpolation=cv.INTER_CUBIC)
-        out.write(image)
-        cv.imshow('output', image)
+        if save:
+            out.write(image)
+        cv.imshow("output", image)
         if cv.waitKey(1) == ord('q'):
             break
     cv.destroyAllWindows()
@@ -510,6 +515,7 @@ def prep_data(data=None,
               binary=True,
               res=(64, 32),
               verbose = 2,
+              normalize = True,
               thresh=(79 // 2, 284 // 2, 0, 255, 0, 107)):
     """
     creates and returns nparrays of images and labels, normalized and resized for training
@@ -538,7 +544,7 @@ def prep_data(data=None,
 
     if "IR" in data:
         images, labels = create_ir_data(thresh=thresh, binary=binary,
-                                        res=res, verbose=verbose)
+                                        res=res, normalize=normalize, verbose=verbose)
         for image in images:
             img_arrays.append(image)
         for label in labels:
@@ -546,7 +552,7 @@ def prep_data(data=None,
 
     if "RGB" in data:
         images, labels = create_RGB_data(thresh=thresh, binary=binary,
-                                         res=res, verbose=verbose)
+                                         res=res, normalize=normalize, verbose=verbose)
         for image in images:
             img_arrays.append(image)
         for label in labels:
@@ -555,7 +561,7 @@ def prep_data(data=None,
     if "RGB2" in data:
 
         images, labels = create_RGB2_data(thresh=thresh, binary=binary,
-                                          res=res, verbose=verbose)
+                                          res=res, normalize=normalize, verbose=verbose)
         for image in images:
             img_arrays.append(image)
         for label in labels:
@@ -564,7 +570,7 @@ def prep_data(data=None,
     if "RGB3" in data:
 
         images, labels = create_RGB3_data(thresh=thresh, binary=binary,
-                                          res=res, verbose=verbose)
+                                          res=res, normalize=normalize, verbose=verbose)
         for image in images:
             img_arrays.append(image)
         for label in labels:
@@ -573,7 +579,7 @@ def prep_data(data=None,
     if "RGB4" in data:
 
         images, labels = create_RGB4_data(thresh=thresh, binary=binary,
-                                          res=res, verbose=verbose)
+                                          res=res, normalize=normalize, verbose=verbose)
         for image in images:
             img_arrays.append(image)
         for label in labels:
@@ -585,7 +591,8 @@ def prep_data(data=None,
         image_utils.plot_example_images(np.expand_dims(img_arrays, axis=-1),
                                         landmarks,
                                         title="examples from loaded dataset")
-
+    if img_arrays.ndim == 3:
+        img_arrays = np.expand_dims(img_arrays, axis=-1)
     return img_arrays, landmarks
 
 
@@ -639,7 +646,7 @@ def view_augmentation(data=None,
 
 
 if __name__ == '__main__':
-    res = config["res"]
+    resolution_ = config["res"]
 
     prep_parser = argparse.ArgumentParser(description="perp data")
     prep_parser.add_argument("-d", '--data',
@@ -668,23 +675,23 @@ if __name__ == '__main__':
     # TODO add assertions
 
     if len(prep_args.threshold) == 6:
-        threshold = prep_args.threshold
+        threshold_ = prep_args.threshold
     else:
         assert len(prep_args.threshold) == 1
-        threshold = config["thresholds"][prep_args.threshold[0]]
+        threshold_ = config["thresholds"][prep_args.threshold[0]]
 
     if prep_args.mode == "prep":
         view_preproccessed_dataset(data=prep_args.data,
                                    suffix=None,
-                                   res=res,
+                                   res=resolution_,
                                    fps=2,
-                                   thresh=(0, 0, 0, 0, 0, 0),
+                                   thresh=threshold_,
                                    binary=prep_args.binary)
     if prep_args.mode == "augs":
         view_augmentation(data=prep_args.data,
                           augs=prep_args.augs,
                           binary=prep_args.binary,
-                          res=res,
+                          res=resolution_,
                           verbose=2,
-                          thresh=(79 // 2, 284 // 2, 0, 255, 0, 107),
+                          thresh=threshold_,
                           fps=2)
