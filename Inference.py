@@ -13,7 +13,7 @@ from config import config
 # ----------------------------------------GPU check---------------------------------------------------------------------
 os.environ['CUDA_VISIBLE_DEVICES'] = "0"
 
-print("Num GPUs Available: ", len(tf.config.list_physical_devices('GPU')))
+print("\n\nNum GPUs Available: ", len(tf.config.list_physical_devices('GPU')))
 
 # ----------------------------------------tkinter init-----------------------------------------------------------------
 
@@ -95,7 +95,6 @@ def main():
         assert len(args.threshold) == 1
         thresh = config["thresholds"][args.threshold[0]]
 
-    low_H, high_H, low_S, high_S, low_V, high_V = thresh # 79 // 2, 284 // 2, 0, 255, 0, 107
     mode = "video" if args.video != "" else "images"
     if args.load == "choice":
         print("Waiting for saved model..")
@@ -122,7 +121,7 @@ def main():
         fps = int(vid.get(cv.CAP_PROP_FPS))
         codec = cv.VideoWriter_fourcc(*'XVID')
         cv.namedWindow("output", cv.WINDOW_NORMAL)
-        cv.resizeWindow('output', width, height)
+        cv.resizeWindow('output', 244, 172) # width, height)
         if args.average > 1:
             output_video_path = os.path.join(model_path,
                                              "output_{}_inference_avg{}_{}.mp4".format(args.video[:-4],

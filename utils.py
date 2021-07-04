@@ -110,6 +110,11 @@ def horizontal_flip_and_show(data, labels, verbose=0):
 
 
 def check_folder(log_dir):
+    """
+    Check if folder exists, if not create it
+    :param log_dir: log dir name
+    :return: existing log dir name
+    """
 
     if not os.path.exists(log_dir):
         os.makedirs(log_dir)

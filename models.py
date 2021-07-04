@@ -137,7 +137,8 @@ def CNN_medium_regression(input_shape,
                           l2_weight_regulaizer=0.0002,
                           weight_initializer="he_normal",
                           kernel=(3, 3),
-                          fc = 128):
+                          fc = 128,
+                          dropout = 0.4):
     """
 
     :param fc: size of last 1*1 cnn and FC
@@ -171,7 +172,7 @@ def CNN_medium_regression(input_shape,
     # FC32 => RELU => BN => DO
     x = Dense(fc, activation="relu")(x)
     x = BatchNormalization()(x)
-    x = Dropout(0.4)(x)
+    x = Dropout(dropout)(x)
 
     outputs = Dense(2, activation="sigmoid")(x)
 
