@@ -1,26 +1,16 @@
-## Pupils_detection
+# Pupils_detection
 
-## install
+This project contains modules for preproccesing visual data, training, testing and converting (with TF-TRT) 
+Tensorflow2 models for pupil center inferencing.
+
+## Install
 `git clone https://github.com/shlomospi/Pupils_detection.git`
 - create venv  
 - install requirments.txt  
 
-# inference with a TRT engine
+## Inference Via TRT Engine
 
-`python Infernece.py`
-
-options:  
--a     :    int, if larger than 1, a running average of prediction of the last will be displayed  
---save : bool, if True, will save result in the saved model's dir  
--v     : path/to/video. Otherwise, will use camera.  
---load: 'choice' to choose saved model manually. Otherwise, will use model in "saved_model" folder.  
-The script will prompt the user to choose a folder containing a saved model for inference.  
--o     : "preproccessed" to save frames after preproccessing.  
--t     : Threshold for preproccesing. For now, needed to be adjusted to the trained model version.  
--bin   : True for conversion of pixels to binary values after preproccessing, if thresholding is being used.  
-# inference
-
-`python Inference.py`
+`python InferneceTRT.py -v <path/to/video>`
 
 options:  
 -a     :    int, if larger than 1, a running average of prediction of the last will be displayed  
@@ -31,7 +21,22 @@ The script will prompt the user to choose a folder containing a saved model for 
 -o     : "preproccessed" to save frames after preproccessing.  
 -t     : Threshold for preproccesing. For now, needed to be adjusted to the trained model version.  
 -bin   : True for conversion of pixels to binary values after preproccessing, if thresholding is being used.  
-# training
+
+## Inference
+
+`python Inference.py -v <path/to/video>`
+
+options:  
+-a     :    int, if larger than 1, a running average of prediction of the last will be displayed  
+--save : bool, if True, will save result in the saved model's dir  
+-v     : path/to/video. Otherwise, will use camera.  
+--load: 'choice' to choose saved model manually. Otherwise, will use model in "saved_model" folder.  
+The script will prompt the user to choose a folder containing a saved model for inference.  
+-o     : "preproccessed" to save frames after preproccessing.  
+-t     : Threshold for preproccesing. For now, needed to be adjusted to the trained model version.  
+-bin   : True for conversion of pixels to binary values after preproccessing, if thresholding is being used.  
+
+## Training
 
 For training, first add to project's directory folders of the dataset:  
 
@@ -62,14 +67,15 @@ alternativly, supply with new datasets and load them
                              
 The script will prompt the user to choose a folder containing a saved model if the phase is 'retrain'.  
 
-# Preproccess Experimenting  
+## Preproccess Experimenting  
 
 A simple GUI is available to eperiment with various preproccesses.  
 The GUI runs a video in loops, while implementing Thresholding via bars.  
 Based on the code provided at:   
 https://docs.opencv.org/3.4/da/d97/tutorial_threshold_inRange.html  
 
-To run:
+To run:  
+
 `python Threshold_experimenting.py -v <relative/path/to/video>`
 
 With options:
@@ -79,7 +85,7 @@ With options:
 -t : Threshold (Hmin, Hmax, Smin, Smax, Vmin, Vmax)  
 -bin: '-bin True' for converting data to binary pixels, ignore for False   
 
-# convert model to TRT engine
+## Convert Model to TRT Engine
 
 Run:
 
