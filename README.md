@@ -5,6 +5,19 @@
 - create venv  
 - install requirments.txt  
 
+# inference with a TRT engine
+
+`python Infernece.py`
+
+options:  
+-a     :    int, if larger than 1, a running average of prediction of the last will be displayed  
+--save : bool, if True, will save result in the saved model's dir  
+-v     : path/to/video. Otherwise, will use camera.  
+--load: 'choice' to choose saved model manually. Otherwise, will use model in "saved_model" folder.  
+The script will prompt the user to choose a folder containing a saved model for inference.  
+-o     : "preproccessed" to save frames after preproccessing.  
+-t     : Threshold for preproccesing. For now, needed to be adjusted to the trained model version.  
+-bin   : True for conversion of pixels to binary values after preproccessing, if thresholding is being used.  
 # inference
 
 `python Inference.py`
@@ -66,4 +79,15 @@ With options:
 -t : Threshold (Hmin, Hmax, Smin, Smax, Vmin, Vmax)  
 -bin: '-bin True' for converting data to binary pixels, ignore for False   
 
-`
+# convert model to TRT engine
+
+Run:
+
+`python TRTconverter.py`
+
+with options:
+
+-p : '16 for float16, 32 for float 32'
+
+The script takes the model from the "saved_model" folder,  
+converts it and saves it in the working directory
