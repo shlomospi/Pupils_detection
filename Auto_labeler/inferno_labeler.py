@@ -313,8 +313,13 @@ if __name__ == "__main__":
                         default="3A4Bh-Ref25")
 
     parser.add_argument('--videos_folder',
-                        help="path to video folder", default=None)
-    parser.add_argument('--image_path', help="path to folder of images", default=None)
+                        help="path to video folder",
+                        default=None)
+
+    parser.add_argument('--image_path',
+                        help="path to folder of images",
+                        default=None)
+
     args = parser.parse_args()
 
     # model_name = args.model_name
