@@ -101,15 +101,19 @@ converts it and saves it in the working directory
 ## label new data using a trained model
 
 To label new data, a trained model which was downloaded from https://github.com/isohrab/Pupil-locator
-was refitted to create new labeled datasets from videos or images. 
+was refitted to create new labeled datasets from videos or images.  
+If videos are provided, first a folder with the frames as images will be created.  
 
 To run:
 
 1. cd into the Auto_labeler folder.  
    
+
 2. Run one of the following commands:  
+     
    for raw video data:  
     `python inferno_labeler.py --videos_folder path/to/folder/of/videos`  
+     
    for raw image data:  
    `python inferno_labeler.py --image_path path/to/folder/of/images`
 
