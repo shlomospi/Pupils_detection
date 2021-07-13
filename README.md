@@ -110,7 +110,7 @@ To run:
 2. Run one of the following commands:  
    for raw video data:  
     `python inferno_labeler.py --videos_folder path/to/folder/of/videos`
-   for raw image data:
+   for raw image data:  
    `python inferno_labeler.py --image_path path/to/folder/of/images`
 
 
