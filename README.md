@@ -100,8 +100,7 @@ converts it and saves it in the working directory
 
 ## label new data using a trained model
 
-To label new data, a train model which was downloaded from:  
-https://github.com/isohrab/Pupil-locator  
+To label new data, a trained model which was downloaded from https://github.com/isohrab/Pupil-locator
 was refitted to create new labeled datasets from videos or images. 
 
 To run:
